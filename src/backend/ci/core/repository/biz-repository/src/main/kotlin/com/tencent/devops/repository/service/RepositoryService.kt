@@ -411,6 +411,7 @@ class RepositoryService @Autowired constructor(
                 tokenType = finalTokenType
             )
             logger.info("moveProjectToGroupResult is :$moveProjectToGroupResult")
+            logger.info("moveProjectToGroupResult is :$moveProjectToGroupResult")
             if (moveProjectToGroupResult.isOk()) {
                 val gitProjectInfo = moveProjectToGroupResult.data!!
                 val repositoryId = HashUtil.decodeOtherIdToLong(repo.repoHashId!!)
