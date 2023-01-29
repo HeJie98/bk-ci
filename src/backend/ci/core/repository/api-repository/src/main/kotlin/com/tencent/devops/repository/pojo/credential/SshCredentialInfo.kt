@@ -24,39 +24,17 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+package com.tencent.devops.repository.pojo.credential
 
-package com.tencent.devops.repository.pojo
-
-import io.swagger.annotations.ApiModel
 import io.swagger.annotations.ApiModelProperty
 
-@ApiModel("代码库模型-Code平台P4")
-data class CodeP4Repository(
-    @ApiModelProperty("代码库别名", required = true)
-    override val aliasName: String,
-    @ApiModelProperty("URL", required = true)
-    override val url: String,
-    @ApiModelProperty("凭据id", required = true)
-    override val credentialId: String,
-    @ApiModelProperty("项目名称(与aliasName相同)", required = true)
-    override val projectName: String,
-    @ApiModelProperty("用户名", required = true)
-    override var userName: String,
-    @ApiModelProperty("项目id", required = true)
-    override var projectId: String?,
-    @ApiModelProperty("仓库hash id", required = false)
-    override val repoHashId: String?
-) : Repository {
-
-    companion object {
-        const val classType = "codeP4"
-    }
-
-    override fun getStartPrefix(): String {
-        return ""
-    }
-
-    override fun isLegal(): Boolean {
-        return true
-    }
-}
+data class SshCredentialInfo(
+    @ApiModelProperty("SSH授权Token")
+    override val token: String,
+    @ApiModelProperty("私钥")
+    override val privateKey: String,
+    @ApiModelProperty("密码")
+    override val passPhrase: String? = null,
+    override val username: String,
+    override val password: String
+) : RepoCredentialInfo

@@ -46,7 +46,8 @@ class RepositoryCodeGitLabDao {
         projectName: String,
         userName: String,
         privateToken: String,
-        authType: RepoAuthType?
+        authType: RepoAuthType?,
+        gitProjectId: String
     ) {
         val now = LocalDateTime.now()
         with(TRepositoryCodeGitlab.T_REPOSITORY_CODE_GITLAB) {
@@ -58,7 +59,8 @@ class RepositoryCodeGitLabDao {
                 CREDENTIAL_ID,
                 CREATED_TIME,
                 UPDATED_TIME,
-                AUTH_TYPE
+                AUTH_TYPE,
+                GIT_PROJECT_ID
             )
                 .values(
                     repositoryId,
@@ -67,7 +69,8 @@ class RepositoryCodeGitLabDao {
                     privateToken,
                     now,
                     now,
-                    authType?.name
+                    authType?.name,
+                    gitProjectId
                 ).execute()
         }
     }
@@ -89,16 +92,21 @@ class RepositoryCodeGitLabDao {
         repositoryId: Long,
         projectName: String,
         userName: String,
-        credentialId: String
+        credentialId: String,
+        gitProjectId: String
     ) {
         val now = LocalDateTime.now()
         with(TRepositoryCodeGitlab.T_REPOSITORY_CODE_GITLAB) {
-            dslContext.update(this)
+            val updateSetStep = dslContext.update(this)
                 .set(PROJECT_NAME, projectName)
                 .set(USER_NAME, userName)
                 .set(CREDENTIAL_ID, credentialId)
                 .set(UPDATED_TIME, now)
-                .where(REPOSITORY_ID.eq(repositoryId))
+
+            if (!gitProjectId.isNullOrBlank()) {
+                updateSetStep.set(GIT_PROJECT_ID, gitProjectId)
+            }
+            updateSetStep.where(REPOSITORY_ID.eq(repositoryId))
                 .execute()
         }
     }
