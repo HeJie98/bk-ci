@@ -45,7 +45,9 @@ data class CodeP4Repository(
     @ApiModelProperty("项目id", required = true)
     override var projectId: String?,
     @ApiModelProperty("仓库hash id", required = false)
-    override val repoHashId: String?
+    override val repoHashId: String?,
+    @ApiModelProperty("是否开启PAC模式", required = true)
+    val enablePac: Boolean? = false
 ) : Repository {
 
     companion object {

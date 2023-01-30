@@ -49,7 +49,9 @@ data class CodeGitlabRepository(
     @ApiModelProperty("仓库hash id", required = false)
     override val repoHashId: String?,
     @ApiModelProperty("仓库认证类型", required = false)
-    val authType: RepoAuthType? = RepoAuthType.HTTP
+    val authType: RepoAuthType? = RepoAuthType.HTTP,
+    @ApiModelProperty("是否开启PAC模式", required = true)
+    val enablePac: Boolean? = false
 ) : Repository {
     companion object {
         const val classType = "codeGitLab"
