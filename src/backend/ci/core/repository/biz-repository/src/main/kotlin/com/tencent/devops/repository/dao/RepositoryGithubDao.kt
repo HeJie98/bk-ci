@@ -123,4 +123,12 @@ class RepositoryGithubDao {
                 .fetch()
         }
     }
+
+    fun getRepositoryByProjectName(dslContext: DSLContext,projectName: String): List<TRepositoryGithubRecord> {
+        with(TRepositoryGithub.T_REPOSITORY_GITHUB) {
+            return dslContext.selectFrom(this)
+                .where(PROJECT_NAME.eq(projectName))
+                .fetch()
+        }
+    }
 }

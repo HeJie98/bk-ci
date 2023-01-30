@@ -34,9 +34,11 @@ import com.tencent.devops.common.service.utils.MessageCodeUtil
 import com.tencent.devops.model.repository.tables.records.TRepositoryRecord
 import com.tencent.devops.repository.dao.RepositoryDao
 import com.tencent.devops.repository.dao.RepositoryGithubDao
+import com.tencent.devops.repository.dao.RepositorySettingsDao
 import com.tencent.devops.repository.pojo.GithubRepository
 import com.tencent.devops.repository.pojo.auth.RepoAuthInfo
 import com.tencent.devops.repository.pojo.enums.RepoAuthType
+import org.apache.commons.collections4.CollectionUtils
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import org.springframework.beans.factory.annotation.Autowired
@@ -46,7 +48,8 @@ import org.springframework.stereotype.Component
 class CodeGithubRepositoryService @Autowired constructor(
     private val repositoryDao: RepositoryDao,
     private val repositoryGithubDao: RepositoryGithubDao,
-    private val dslContext: DSLContext
+    private val dslContext: DSLContext,
+    private val repositorySettingsDao: RepositorySettingsDao
 ) : CodeRepositoryService<GithubRepository> {
     override fun repositoryType(): String {
         return GithubRepository::class.java.name
@@ -66,6 +69,12 @@ class CodeGithubRepositoryService @Autowired constructor(
                 type = ScmType.GITHUB
             )
             repositoryGithubDao.create(dslContext, repositoryId, repository.projectName, userId)
+            checkPacSetting(
+                dslContext = transactionContext,
+                repository = repository,
+                repositoryId = repositoryId,
+                isEdit = false
+            )
         }
         return repositoryId
     }
@@ -90,7 +99,13 @@ class CodeGithubRepositoryService @Autowired constructor(
                 aliasName = repository.aliasName,
                 url = repository.getFormatURL()
             )
-            repositoryGithubDao.edit(dslContext, repositoryId, repository.projectName, repository.userName)
+            repositoryGithubDao.edit(transactionContext, repositoryId, repository.projectName, repository.userName)
+            checkPacSetting(
+                dslContext = transactionContext,
+                repository = repository,
+                repositoryId = repositoryId,
+                isEdit = true
+            )
         }
     }
 
@@ -113,5 +128,48 @@ class CodeGithubRepositoryService @Autowired constructor(
         )?.associateBy({ it -> it.repositoryId }, {
             RepoAuthInfo(authType = RepoAuthType.OAUTH.name, credentialId = it.userName)
         }) ?: mapOf()
+    }
+
+    /**
+     * 检查Pac设置
+     */
+    fun checkPacSetting(dslContext: DSLContext, repository: GithubRepository, repositoryId: Long, isEdit: Boolean) {
+        // 匹配代码库设置
+        var repositoryIds = repositoryGithubDao.getRepositoryByProjectName(
+            dslContext = dslContext,
+            projectName = repository.projectName
+        ).map { it.repositoryId }
+        // 过滤已删除
+        repositoryIds = repositoryDao.getRepoByIds(
+            dslContext = dslContext,
+            repositoryIds = repositoryIds,
+            checkDelete = true
+        )?.map { it.repositoryId } ?: ArrayList()
+        val enablePacRepoIds = repositorySettingsDao.getEnablePacSettingsByRepositoryIds(
+            dslContext = dslContext,
+            repositoryIds = repositoryIds
+        )
+        // 若代码库已开启PAC，则不允许开启
+        if (isEdit) {
+            // 修改
+            if (CollectionUtils.size(enablePacRepoIds) > 0 && repositoryId != enablePacRepoIds[0]) {
+                throw OperationException(
+                    MessageCodeUtil.generateResponseDataObject<String>(
+                        RepositoryMessageCode.REPO_ENABLED_PAC,
+                        arrayOf(repository.projectName)
+                    ).message!!
+                )
+            }
+        } else {
+            // 新增
+            if (CollectionUtils.size(enablePacRepoIds) > 0 && repository.enablePac == true) {
+                throw OperationException(
+                    MessageCodeUtil.generateResponseDataObject<String>(
+                        RepositoryMessageCode.REPO_ENABLED_PAC,
+                        arrayOf(repository.projectName)
+                    ).message!!
+                )
+            }
+        }
     }
 }
