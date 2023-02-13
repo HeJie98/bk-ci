@@ -44,6 +44,9 @@ data class SubPipelineRefTree(
     @ApiModelProperty("流水线状态", required = false)
     var status: String,
 
+    @ApiModelProperty("子流水线插件名称", required = false)
+    var taskName: String = "",
+
     @ApiModelProperty("下级流水线信息", required = false)
     var subPipeline: MutableList<SubPipelineRefTree> = mutableListOf()
 )
