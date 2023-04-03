@@ -480,7 +480,24 @@ abstract class SubPipelineStartUpService @Autowired constructor() {
         return Result(subPipelineStatusService.getSubPipelineStatus(projectId, buildId))
     }
 
-    fun getSubPipelinesStatus(projectId: String, pipelineId: String, buildId: String): Result<SubPipelineRefTree?> {
-        return Result(subPipelineStatusService.getSubPipelinesStatus(projectId, pipelineId, buildId))
+    fun getSubPipelineRunStatus(projectId: String, pipelineId: String, buildId: String): Result<SubPipelineRefTree?> {
+        return Result(subPipelineStatusService.getSubPipelineRunStatus(projectId, pipelineId, buildId))
+    }
+
+    /**
+     * 检查递归调用
+     */
+    fun checkRecursiveCall(
+        parentProjectId: String,
+        parentPipelineId: String,
+        parentBuildId: String,
+        pipelineId: String
+    ) {
+        return subPipelineStatusService.checkRecursiveCall(
+            parentProjectId = parentProjectId,
+            parentPipelineId = parentPipelineId,
+            parentBuildId = parentBuildId,
+            pipelineId = pipelineId
+        )
     }
 }

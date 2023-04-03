@@ -38,11 +38,22 @@ class PipelineBuildHistoryDao {
     fun findHistoryByParentBuildId(
         dslContext: DSLContext,
         parentBuildId: String
-    ): Array<out TPipelineBuildHistoryRecord> {
+    ): List<TPipelineBuildHistoryRecord> {
         return with(TPipelineBuildHistory.T_PIPELINE_BUILD_HISTORY) {
             dslContext.selectFrom(this)
                 .where(PARENT_BUILD_ID.eq(parentBuildId))
-                .fetchArray()
+                .toList()
+        }
+    }
+
+    fun addParentPipelineInfo(dslContext: DSLContext, parentPipelineId: String, buildId: String) {
+        with(TPipelineBuildHistory.T_PIPELINE_BUILD_HISTORY) {
+            val source = dslContext.selectFrom(this).where(BUILD_ID.eq(buildId)).fetchOne()
+            if (source != null && source.parentPipelineIds.indexOf(parentPipelineId) == -1) {
+                dslContext.update(this)
+                    .set(PARENT_PIPELINE_IDS, source.parentPipelineIds + "," + parentPipelineId)
+                    .where(BUILD_ID.eq(buildId))
+            }
         }
     }
 }

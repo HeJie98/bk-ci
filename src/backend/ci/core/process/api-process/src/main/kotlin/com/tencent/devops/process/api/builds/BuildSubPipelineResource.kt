@@ -166,8 +166,8 @@ interface BuildSubPipelineResource {
 
     @ApiOperation("获取子流水线状态")
     @GET
-    @Path("/subPipeline/{projectId}/{pipelineId}/{buildId}/call/detail")
-    fun getSubPipelinesStatus(
+    @Path("/{projectId}/{pipelineId}/{buildId}/call/detail/new")
+    fun getSubPipelineRunStatus(
         @ApiParam("项目ID", required = true)
         @PathParam("projectId")
         projectId: String,

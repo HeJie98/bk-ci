@@ -27,6 +27,7 @@
 
 package com.tencent.devops.process.service
 
+import com.tencent.devops.common.api.exception.OperationException
 import com.tencent.devops.common.api.pojo.ErrorCode
 import com.tencent.devops.common.api.pojo.ErrorType
 import com.tencent.devops.common.api.util.JsonUtil
@@ -129,73 +130,38 @@ class SubPipelineStatusService @Autowired constructor(
         }
     }
 
-    fun getSubPipelinesStatus(projectId: String, pipelineId: String, buildId: String): SubPipelineRefTree? {
-        // 获取状态信息，提取树形结构，避免二次递归查数据库
-        val statusKey = "subpipeline:build:$buildId:statusTree"
-        val statusInfo = redisOperation.get(statusKey)
-        var status: SubPipelineRefTree? = null
-        if (statusInfo.isNullOrBlank()) {
-            logger.info("首次获取子流水线状态,projectId=[$projectId],pipelineId=[$pipelineId],buildId=[$buildId]")
-            val historyRecord = pipelineBuildHistoryDao.findHistoryByParentBuildId(
-                dslContext = dslContext,
-                parentBuildId = buildId
-            )
-            status = getSubPipelineByBuildHistory(
-                dslContext = dslContext,
-                history = historyRecord,
-                depth = SUBPIPELINE_CALL_DEPTH,
-                base = SubPipelineRefTree(
-                    buildId = buildId,
-                    pipelineId = pipelineId,
+    fun getSubPipelineRunStatus(projectId: String, pipelineId: String, buildId: String): SubPipelineRefTree? {
+        logger.info("获取子流水线状态,projectId=[$projectId],pipelineId=[$pipelineId],buildId=[$buildId]")
+        val historyRecord = pipelineBuildHistoryDao.findHistoryByParentBuildId(
+            dslContext = dslContext,
+            parentBuildId = buildId
+        )
+        return getSubPipelineByBuildHistory(
+            dslContext = dslContext,
+            history = historyRecord,
+            depth = SUBPIPELINE_CALL_DEPTH,
+            base = SubPipelineRefTree(
+                buildId = buildId,
+                pipelineId = pipelineId,
+                projectId = projectId,
+                status = getSubPipelineStatus(
                     projectId = projectId,
-                    status = getSubPipelineStatus(
-                        projectId = projectId,
-                        buildId = buildId
-                    ).status
-                )
-            )
-            redisOperation.set(statusKey, JsonUtil.toJson(status!!, false))
-        } else {
-            logger.info("获取子流水线最新状态,projectId=[$projectId],pipelineId=[$pipelineId],buildId=[$buildId]")
-            status = getSubPipelineLastStatus(JsonUtil.to(statusInfo, SubPipelineRefTree::class.java))
-        }
-        return status
-    }
-
-    fun getSubPipelineLastStatus(subPipelines: SubPipelineRefTree): SubPipelineRefTree? {
-        if (subPipelines.subPipeline.isEmpty()) {
-            return null
-        }
-        subPipelines.status = getSubPipelineStatus(
-            projectId = subPipelines.projectId,
-            buildId = subPipelines.buildId
-        ).status
-        subPipelines.subPipeline.forEach {
-            if (it.subPipeline.isNotEmpty()) {
-                val subs = getSubPipelineLastStatus(it)
-                if (subs != null) {
-                    it.subPipeline.add(subs)
-                }
-            } else {
-                it.status = getSubPipelineStatus(
-                    projectId = it.projectId,
-                    buildId = it.buildId
+                    buildId = buildId
                 ).status
-            }
-        }
-        return subPipelines
+            )
+        )
     }
 
     private fun getSubPipelineByBuildHistory(
         dslContext: DSLContext,
-        history: Array<out TPipelineBuildHistoryRecord>,
+        history: List<TPipelineBuildHistoryRecord>,
         depth: Int,
         base: SubPipelineRefTree
     ): SubPipelineRefTree? {
         if (history.isEmpty()) {
             return null
         }
-        history.forEach {
+        history.forEach { it ->
             val historyRecord = pipelineBuildHistoryDao.findHistoryByParentBuildId(
                 dslContext = dslContext,
                 parentBuildId = it.buildId
@@ -235,6 +201,33 @@ class SubPipelineStatusService @Autowired constructor(
             }
         }
         return base
+    }
+
+    /**
+     * 检查递归调用
+     */
+    fun checkRecursiveCall(
+        parentProjectId: String,
+        parentPipelineId: String,
+        parentBuildId: String,
+        pipelineId: String
+    ) {
+        val subBuild = pipelineBuildHistoryDao.findHistoryByParentBuildId(
+            dslContext = dslContext,
+            parentBuildId = parentBuildId
+        )
+        subBuild.forEach {
+            if (it.parentPipelineIds.contains(pipelineId)) {
+                logger.warn(
+                    "subPipeline does not allow loop calls|" +
+                        "parentProjectId:${parentProjectId}|" +
+                        "parentPipelineId:${parentBuildId}|" +
+                        "parentBuildId:$parentBuildId|" +
+                        "pipelineId:$pipelineId"
+                )
+                throw OperationException("子流水线不允许循环调用,循环流水线:pipelineId:$pipelineId")
+            }
+        }
     }
 
     private fun getSubPipelineStatusKey(buildId: String): String {

@@ -115,12 +115,12 @@ class BuildSubPipelineResourceImpl @Autowired constructor(
         return subPipeService.getPipelineByName(projectId, pipelineName)
     }
 
-    override fun getSubPipelinesStatus(
+    override fun getSubPipelineRunStatus(
         projectId: String,
         pipelineId: String,
         buildId: String
     ): Result<SubPipelineRefTree?> {
-        return subPipeService.getSubPipelinesStatus(projectId, pipelineId, buildId)
+        return subPipeService.getSubPipelineRunStatus(projectId, pipelineId, buildId)
     }
 
     private fun checkParam(userId: String) {
