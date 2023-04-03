@@ -34,6 +34,7 @@ import com.tencent.devops.common.web.RestResource
 import com.tencent.devops.common.web.annotation.BuildApiPermission
 import com.tencent.devops.common.web.constant.BuildApiHandleType
 import com.tencent.devops.process.pojo.PipelineId
+import com.tencent.devops.process.pojo.SubPipelineRefTree
 import com.tencent.devops.process.pojo.pipeline.ProjectBuildId
 import com.tencent.devops.process.pojo.pipeline.SubPipelineStartUpInfo
 import com.tencent.devops.process.pojo.pipeline.SubPipelineStatus
@@ -112,6 +113,14 @@ class BuildSubPipelineResourceImpl @Autowired constructor(
 
     override fun getPipelineByName(projectId: String, pipelineName: String): Result<List<PipelineId?>> {
         return subPipeService.getPipelineByName(projectId, pipelineName)
+    }
+
+    override fun getSubPipelineRunStatus(
+        projectId: String,
+        pipelineId: String,
+        buildId: String
+    ): Result<SubPipelineRefTree?> {
+        return subPipeService.getSubPipelineRunStatus(projectId, pipelineId, buildId)
     }
 
     private fun checkParam(userId: String) {

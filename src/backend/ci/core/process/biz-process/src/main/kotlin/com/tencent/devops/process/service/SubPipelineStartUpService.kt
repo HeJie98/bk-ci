@@ -48,6 +48,7 @@ import com.tencent.devops.process.engine.service.PipelineRepositoryService
 import com.tencent.devops.process.engine.service.PipelineRuntimeService
 import com.tencent.devops.process.engine.service.PipelineTaskService
 import com.tencent.devops.process.pojo.PipelineId
+import com.tencent.devops.process.pojo.SubPipelineRefTree
 import com.tencent.devops.process.pojo.pipeline.ProjectBuildId
 import com.tencent.devops.process.pojo.pipeline.StartUpInfo
 import com.tencent.devops.process.pojo.pipeline.SubPipelineStartUpInfo
@@ -477,5 +478,19 @@ abstract class SubPipelineStartUpService @Autowired constructor() {
 
     fun getSubPipelineStatus(projectId: String, buildId: String): Result<SubPipelineStatus> {
         return Result(subPipelineStatusService.getSubPipelineStatus(projectId, buildId))
+    }
+
+    fun getSubPipelineRunStatus(
+        projectId: String,
+        pipelineId: String,
+        buildId: String
+    ): Result<SubPipelineRefTree?> {
+        return Result(
+            subPipelineStatusService.getSubPipelineRunStatus(
+                projectId,
+                pipelineId,
+                buildId
+            )
+        )
     }
 }
