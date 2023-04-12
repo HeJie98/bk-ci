@@ -37,6 +37,7 @@ import com.tencent.devops.common.pipeline.enums.StartType
 import com.tencent.devops.common.redis.RedisOperation
 import com.tencent.devops.model.process.tables.records.TPipelineBuildHistoryRecord
 import com.tencent.devops.process.dao.PipelineBuildHistoryDao
+import com.tencent.devops.process.engine.dao.PipelineModelTaskDao
 import com.tencent.devops.process.engine.service.PipelineRuntimeService
 import com.tencent.devops.process.pojo.SubPipelineRefTree
 import com.tencent.devops.process.pojo.pipeline.SubPipelineStatus
@@ -50,6 +51,7 @@ class SubPipelineStatusService @Autowired constructor(
     private val pipelineRuntimeService: PipelineRuntimeService,
     private val redisOperation: RedisOperation,
     private val pipelineBuildHistoryDao: PipelineBuildHistoryDao,
+    private val pipelineModeTaskDao: PipelineModelTaskDao,
     private var dslContext: DSLContext
 ) {
 
@@ -61,7 +63,7 @@ class SubPipelineStatusService @Autowired constructor(
         private const val SUBPIPELINE_STATUS_FINISH_EXPIRED = 600L
 
         // 子流水线递归调用层次
-        private const val SUBPIPELINE_CALL_DEPTH = 3
+        private const val SUBPIPELINE_CALL_DEPTH = 2
     }
 
     private val logger = LoggerFactory.getLogger(SubPipelineStatusService::class.java)
@@ -130,36 +132,49 @@ class SubPipelineStatusService @Autowired constructor(
         }
     }
 
-    fun getSubPipelineRunStatus(projectId: String, pipelineId: String, buildId: String): SubPipelineRefTree? {
+    fun getSubPipelineRunStatus(
+        projectId: String,
+        pipelineId: String,
+        buildId: String
+    ): SubPipelineRefTree? {
         logger.info("获取子流水线状态,projectId=[$projectId],pipelineId=[$pipelineId],buildId=[$buildId]")
-        val historyRecord = pipelineBuildHistoryDao.findHistoryByParentBuildId(
-            dslContext = dslContext,
-            parentBuildId = buildId
-        )
-        return getSubPipelineByBuildHistory(
-            dslContext = dslContext,
-            history = historyRecord,
-            depth = SUBPIPELINE_CALL_DEPTH,
-            base = SubPipelineRefTree(
-                buildId = buildId,
-                pipelineId = pipelineId,
-                projectId = projectId,
-                status = getSubPipelineStatus(
-                    projectId = projectId,
-                    buildId = buildId
-                ).status
+        // 子流水线树形结构
+        var subPipelineTreeInfo = redisOperation.get(getSubPipelineTreeKey(buildId))
+        val start = System.currentTimeMillis()
+        if (subPipelineTreeInfo.isNullOrEmpty() ) {
+            val historyRecord = pipelineBuildHistoryDao.findHistoryByParentBuildId(
+                dslContext = dslContext,
+                parentBuildId = buildId
             )
+            val pipelineStatus = getSubPipelineStatus(projectId, buildId)
+            subPipelineTreeInfo = getSubPipelineStrByBuildHistory(
+                dslContext = dslContext,
+                history = historyRecord,
+                depth = SUBPIPELINE_CALL_DEPTH,
+                outStr = StringBuilder("|-\${taskName}(${pipelineStatus.status})\n")
+            )
+            redisOperation.set(
+                getSubPipelineTreeKey(buildId),
+                subPipelineTreeInfo,
+                60
+            )
+        }
+        val end = System.currentTimeMillis()
+        println("耗时==>${(end - start)} ms")
+        println("tree = \n$subPipelineTreeInfo")
+        return SubPipelineRefTree(
+            treeStr = subPipelineTreeInfo
         )
     }
 
-    private fun getSubPipelineByBuildHistory(
+    private fun getSubPipelineStrByBuildHistory(
         dslContext: DSLContext,
         history: List<TPipelineBuildHistoryRecord>,
         depth: Int,
-        base: SubPipelineRefTree
-    ): SubPipelineRefTree? {
+        outStr: StringBuilder
+    ): String {
         if (history.isEmpty()) {
-            return null
+            return ""
         }
         history.forEach { it ->
             val historyRecord = pipelineBuildHistoryDao.findHistoryByParentBuildId(
@@ -167,40 +182,32 @@ class SubPipelineStatusService @Autowired constructor(
                 parentBuildId = it.buildId
             )
             val subDepth = depth - 1
+            for (i in 1..SUBPIPELINE_CALL_DEPTH - subDepth) {
+                outStr.append("\t")
+            }
+            val taskInfo = pipelineModeTaskDao.get(
+                dslContext = dslContext,
+                projectId = it.projectId,
+                pipelineId = it.pipelineId,
+                taskId = it.parentTaskId
+            )
+            outStr.append("|-${taskInfo?.taskName ?: "unknown taskName"}")
+            val pipelineStatus = getSubPipelineStatus(it.projectId, it.buildId)
             // 仍存在下级子流水线调用，则继续递归
-            if (historyRecord.isNotEmpty() || subDepth <= 0) {
-                val sub = getSubPipelineByBuildHistory(
+            if (historyRecord.isNotEmpty() && subDepth > 0) {
+                outStr.append("(${pipelineStatus.status})")
+                val sub = getSubPipelineStrByBuildHistory(
                     dslContext = dslContext,
                     history = historyRecord,
                     depth = subDepth,
-                    base = SubPipelineRefTree(
-                        buildId = it.buildId,
-                        projectId = it.projectId,
-                        pipelineId = it.pipelineId,
-                        status = getSubPipelineStatus(
-                            projectId = it.projectId,
-                            buildId = it.buildId
-                        ).status
-                    )
+                    outStr = StringBuilder()
                 )
-                if (sub != null) {
-                    base.subPipeline.add(sub)
-                }
+                outStr.append("\n$sub")
             } else {
-                base.subPipeline.add(
-                    SubPipelineRefTree(
-                        buildId = it.buildId,
-                        projectId = it.projectId,
-                        pipelineId = it.pipelineId,
-                        status = getSubPipelineStatus(
-                            projectId = it.projectId,
-                            buildId = it.buildId
-                        ).status
-                    )
-                )
+                outStr.append("(${pipelineStatus.status})\n")
             }
         }
-        return base
+        return outStr.toString()
     }
 
     /**
@@ -232,5 +239,13 @@ class SubPipelineStatusService @Autowired constructor(
 
     private fun getSubPipelineStatusKey(buildId: String): String {
         return "subpipeline:build:$buildId:status"
+    }
+
+    private fun getSubPipelineTreeKey(buildId: String): String {
+        return "subPipelineTree:build:$buildId:tree"
+    }
+
+    private fun getSubPipelineTreeStatusMapKey(buildId: String): String {
+        return "subPipelineTree:build:$buildId:statusMap"
     }
 }

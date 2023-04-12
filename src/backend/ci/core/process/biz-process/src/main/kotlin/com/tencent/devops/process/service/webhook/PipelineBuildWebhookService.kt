@@ -95,7 +95,7 @@ abstract class PipelineBuildWebhookService : ApplicationContextAware {
         gitWebhookUnlockDispatcher = applicationContext.getBean(GitWebhookUnlockDispatcher::class.java)
         pipelineWebHookQueueService = applicationContext.getBean(PipelineWebHookQueueService::class.java)
         buildLogPrinter = applicationContext.getBean(BuildLogPrinter::class.java)
-        pipelinebuildWebhookService = applicationContext.getBean(PipelineBuildWebhookService::class.java)
+        // pipelinebuildWebhookService = applicationContext.getBean(PipelineBuildWebhookService::class.java)
         pipelineBuildCommitService = applicationContext.getBean(PipelineBuildCommitService::class.java)
         webhookBuildParameterService = applicationContext.getBean(WebhookBuildParameterService::class.java)
     }

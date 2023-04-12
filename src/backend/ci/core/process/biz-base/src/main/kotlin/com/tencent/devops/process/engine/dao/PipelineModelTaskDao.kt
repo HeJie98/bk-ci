@@ -293,4 +293,19 @@ class PipelineModelTaskDao {
                 .execute()
         }
     }
+
+    fun get(
+        dslContext: DSLContext,
+        projectId: String,
+        pipelineId: String,
+        taskId: String
+    ): TPipelineModelTaskRecord? {
+        with(TPipelineModelTask.T_PIPELINE_MODEL_TASK) {
+            return dslContext.selectFrom(this)
+                .where(PROJECT_ID.eq(projectId))
+                .and(PIPELINE_ID.eq(pipelineId))
+                .and(TASK_ID.eq(taskId))
+                .fetchOne()
+        }
+    }
 }

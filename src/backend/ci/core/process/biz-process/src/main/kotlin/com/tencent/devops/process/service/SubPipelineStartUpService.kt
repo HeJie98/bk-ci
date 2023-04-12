@@ -480,8 +480,18 @@ abstract class SubPipelineStartUpService @Autowired constructor() {
         return Result(subPipelineStatusService.getSubPipelineStatus(projectId, buildId))
     }
 
-    fun getSubPipelineRunStatus(projectId: String, pipelineId: String, buildId: String): Result<SubPipelineRefTree?> {
-        return Result(subPipelineStatusService.getSubPipelineRunStatus(projectId, pipelineId, buildId))
+    fun getSubPipelineRunStatus(
+        projectId: String,
+        pipelineId: String,
+        buildId: String
+    ): Result<SubPipelineRefTree?> {
+        return Result(
+            subPipelineStatusService.getSubPipelineRunStatus(
+                projectId,
+                pipelineId,
+                buildId
+            )
+        )
     }
 
     /**

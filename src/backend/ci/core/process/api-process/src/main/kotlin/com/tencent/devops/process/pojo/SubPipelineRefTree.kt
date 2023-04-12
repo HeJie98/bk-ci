@@ -30,23 +30,11 @@ package com.tencent.devops.process.pojo
 import io.swagger.annotations.ApiModel
 import io.swagger.annotations.ApiModelProperty
 
-@ApiModel("子流水线-依赖调用结构树")
+@ApiModel("子流水线-依赖调用树形结构")
 data class SubPipelineRefTree(
-    @ApiModelProperty("构建Id", required = false)
-    val buildId: String,
+    @ApiModelProperty("树状结构字符串", required = false)
+    val treeStr: String,
 
-    @ApiModelProperty("流水线Id", required = false)
-    val pipelineId: String,
-
-    @ApiModelProperty("蓝盾项目Id", required = false)
-    val projectId: String,
-
-    @ApiModelProperty("流水线状态", required = false)
-    var status: String,
-
-    @ApiModelProperty("子流水线插件名称", required = false)
-    var taskName: String = "",
-
-    @ApiModelProperty("下级流水线信息", required = false)
-    var subPipeline: MutableList<SubPipelineRefTree> = mutableListOf()
+    @ApiModelProperty("流水线状态信息字符串（JSON格式的Map）", required = false)
+    val statusMap: String? = ""
 )
