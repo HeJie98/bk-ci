@@ -493,21 +493,4 @@ abstract class SubPipelineStartUpService @Autowired constructor() {
             )
         )
     }
-
-    /**
-     * 检查递归调用
-     */
-    fun checkRecursiveCall(
-        parentProjectId: String,
-        parentPipelineId: String,
-        parentBuildId: String,
-        pipelineId: String
-    ) {
-        return subPipelineStatusService.checkRecursiveCall(
-            parentProjectId = parentProjectId,
-            parentPipelineId = parentPipelineId,
-            parentBuildId = parentBuildId,
-            pipelineId = pipelineId
-        )
-    }
 }

@@ -210,42 +210,11 @@ class SubPipelineStatusService @Autowired constructor(
         return outStr.toString()
     }
 
-    /**
-     * 检查递归调用
-     */
-    fun checkRecursiveCall(
-        parentProjectId: String,
-        parentPipelineId: String,
-        parentBuildId: String,
-        pipelineId: String
-    ) {
-        val subBuild = pipelineBuildHistoryDao.findHistoryByParentBuildId(
-            dslContext = dslContext,
-            parentBuildId = parentBuildId
-        )
-        subBuild.forEach {
-            if (it.parentPipelineIds.contains(pipelineId)) {
-                logger.warn(
-                    "subPipeline does not allow loop calls|" +
-                        "parentProjectId:${parentProjectId}|" +
-                        "parentPipelineId:${parentBuildId}|" +
-                        "parentBuildId:$parentBuildId|" +
-                        "pipelineId:$pipelineId"
-                )
-                throw OperationException("子流水线不允许循环调用,循环流水线:pipelineId:$pipelineId")
-            }
-        }
-    }
-
     private fun getSubPipelineStatusKey(buildId: String): String {
         return "subpipeline:build:$buildId:status"
     }
 
     private fun getSubPipelineTreeKey(buildId: String): String {
         return "subPipelineTree:build:$buildId:tree"
-    }
-
-    private fun getSubPipelineTreeStatusMapKey(buildId: String): String {
-        return "subPipelineTree:build:$buildId:statusMap"
     }
 }
