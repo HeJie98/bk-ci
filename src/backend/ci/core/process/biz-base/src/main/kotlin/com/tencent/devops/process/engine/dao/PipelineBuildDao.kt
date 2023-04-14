@@ -86,7 +86,8 @@ class PipelineBuildDao {
         webhookInfo: String?,
         buildMsg: String?,
         buildNumAlias: String? = null,
-        concurrencyGroup: String? = null
+        concurrencyGroup: String? = null,
+        callChain: String? = null
     ) {
         try {
             with(T_PIPELINE_BUILD_HISTORY) {
@@ -112,7 +113,8 @@ class PipelineBuildDao {
                     WEBHOOK_INFO,
                     BUILD_MSG,
                     BUILD_NUM_ALIAS,
-                    CONCURRENCY_GROUP
+                    CONCURRENCY_GROUP,
+                    CALL_CHAIN
                 ).values(
                     buildId,
                     buildNum,
@@ -134,7 +136,8 @@ class PipelineBuildDao {
                     webhookInfo,
                     buildMsg,
                     buildNumAlias,
-                    concurrencyGroup
+                    concurrencyGroup,
+                    callChain
                 ).execute()
             }
         } catch (t: Throwable) {
@@ -1004,6 +1007,17 @@ class PipelineBuildDao {
             dslContext.selectCount().from(this)
                 .where(conditions)
                 .fetchOne(0, Int::class.java)!!
+        }
+    }
+
+    fun findHistoryByParentBuildId(
+        dslContext: DSLContext,
+        parentBuildId: String
+    ): List<TPipelineBuildHistoryRecord> {
+        return with(TPipelineBuildHistory.T_PIPELINE_BUILD_HISTORY) {
+            dslContext.selectFrom(this)
+                .where(PARENT_BUILD_ID.eq(parentBuildId))
+                .toList()
         }
     }
 }

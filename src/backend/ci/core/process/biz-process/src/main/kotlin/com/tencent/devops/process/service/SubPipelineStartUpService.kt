@@ -43,6 +43,7 @@ import com.tencent.devops.common.pipeline.pojo.element.market.MarketBuildLessAto
 import com.tencent.devops.common.service.utils.MessageCodeUtil
 import com.tencent.devops.process.constant.ProcessMessageCode
 import com.tencent.devops.process.engine.compatibility.BuildParametersCompatibilityTransformer
+import com.tencent.devops.process.engine.dao.PipelineBuildDao
 import com.tencent.devops.process.engine.dao.PipelineBuildTaskDao
 import com.tencent.devops.process.engine.service.PipelineRepositoryService
 import com.tencent.devops.process.engine.service.PipelineRuntimeService
@@ -105,6 +106,9 @@ abstract class SubPipelineStartUpService @Autowired constructor() {
     @Autowired
     lateinit var buildParamCompatibilityTransformer: BuildParametersCompatibilityTransformer
 
+    @Autowired
+    lateinit var pipelineBuildDao: PipelineBuildDao
+
     companion object {
         private val logger = LoggerFactory.getLogger(SubPipelineStartUpService::class.java)
         private const val SYNC_RUN_MODE = "syn"
@@ -130,7 +134,8 @@ abstract class SubPipelineStartUpService @Autowired constructor() {
         taskId: String,
         runMode: String,
         channelCode: ChannelCode? = null,
-        values: Map<String, String>
+        values: Map<String, String>,
+        callChainCheck: Boolean? = false
     ): Result<ProjectBuildId> {
         val fixProjectId = callProjectId.ifBlank { projectId }
 
@@ -163,15 +168,30 @@ abstract class SubPipelineStartUpService @Autowired constructor() {
         values.forEach {
             startParams[it.key] = parseVariable(it.value, runVariables)
         }
-
-        val existPipelines = HashSet<String>()
-        existPipelines.add(parentPipelineId)
-        try {
-            checkSub(atomCode, projectId = fixProjectId, pipelineId = callPipelineId, existPipelines = existPipelines)
-        } catch (e: OperationException) {
-            return MessageCodeUtil.generateResponseDataObject(ProcessMessageCode.ERROR_SUBPIPELINE_CYCLE_CALL)
+        if (callChainCheck == true) {
+            val channel = pipelineBuildDao.getBuildInfo(
+                dslContext = dslContext,
+                projectId = projectId,
+                buildId = buildId
+            )?.channel
+            // 调用链中包含需要调用的流水线ID
+            if (channel?.contains(callPipelineId) == true){
+                return MessageCodeUtil.generateResponseDataObject(ProcessMessageCode.ERROR_SUBPIPELINE_CYCLE_CALL)
+            }
+        } else {
+            val existPipelines = HashSet<String>()
+            existPipelines.add(parentPipelineId)
+            try {
+                checkSub(
+                    atomCode,
+                    projectId = fixProjectId,
+                    pipelineId = callPipelineId,
+                    existPipelines = existPipelines
+                )
+            } catch (e: OperationException) {
+                return MessageCodeUtil.generateResponseDataObject(ProcessMessageCode.ERROR_SUBPIPELINE_CYCLE_CALL)
+            }
         }
-
         val subBuildId = subPipelineStartup(
             userId = userId,
             projectId = fixProjectId,

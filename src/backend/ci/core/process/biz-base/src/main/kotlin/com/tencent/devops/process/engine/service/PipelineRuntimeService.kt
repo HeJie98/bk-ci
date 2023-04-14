@@ -1083,6 +1083,18 @@ class PipelineRuntimeService @Autowired constructor(
                     val pipelineVersionLock = PipelineVersionLock(redisOperation, pipelineId, version)
                     try {
                         pipelineVersionLock.lock()
+                        val parentCallChain = if (
+                            !context.parentProjectId.isNullOrEmpty() &&
+                            !context.parentBuildId.isNullOrEmpty()
+                        ) {
+                            pipelineBuildDao.getBuildInfo(
+                                dslContext = transactionContext,
+                                projectId = context.parentProjectId!!,
+                                buildId = context.parentBuildId!!
+                            )?.callChain
+                        } else {
+                            null
+                        }
                         pipelineBuildDao.create(
                             dslContext = transactionContext,
                             projectId = projectId,
@@ -1104,7 +1116,12 @@ class PipelineRuntimeService @Autowired constructor(
                             webhookInfo = getWebhookInfo(context.variables),
                             buildMsg = getBuildMsg(context.variables[PIPELINE_BUILD_MSG]),
                             buildNumAlias = buildNumAlias,
-                            concurrencyGroup = concurrencyGroup
+                            concurrencyGroup = concurrencyGroup,
+                            callChain = if (parentCallChain.isNullOrEmpty()) {
+                                pipelineId
+                            } else {
+                                "$parentCallChain,$pipelineId"
+                            }
                         )
                         // 查询流水线版本记录
                         val pipelineVersionInfo = pipelineResVersionDao.getPipelineVersionSimple(

@@ -54,6 +54,7 @@ class BuildSubPipelineResourceImpl @Autowired constructor(
         atomCode: String,
         taskId: String,
         runMode: String,
+        callChainCheck:Boolean?,
         values: Map<String, String>
     ): Result<ProjectBuildId> {
         return subPipeService.callPipelineStartup(
@@ -65,7 +66,8 @@ class BuildSubPipelineResourceImpl @Autowired constructor(
             atomCode = atomCode,
             taskId = taskId,
             runMode = runMode,
-            values = values
+            values = values,
+            callChainCheck = callChainCheck
         )
     }
 

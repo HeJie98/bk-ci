@@ -133,6 +133,9 @@ interface BuildSubPipelineResource {
         @ApiParam("运行方式", required = true)
         @QueryParam("runMode")
         runMode: String,
+        @ApiParam("调用链检查", required = true)
+        @QueryParam("runMode")
+        callChainCheck:Boolean? = false,
         @ApiParam("启动参数", required = true)
         values: Map<String, String>
     ): Result<ProjectBuildId>

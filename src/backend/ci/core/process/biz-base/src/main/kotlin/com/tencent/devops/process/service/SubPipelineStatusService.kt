@@ -35,7 +35,7 @@ import com.tencent.devops.common.pipeline.enums.BuildStatus
 import com.tencent.devops.common.pipeline.enums.StartType
 import com.tencent.devops.common.redis.RedisOperation
 import com.tencent.devops.model.process.tables.records.TPipelineBuildHistoryRecord
-import com.tencent.devops.process.dao.PipelineBuildHistoryDao
+import com.tencent.devops.process.engine.dao.PipelineBuildDao
 import com.tencent.devops.process.engine.dao.PipelineModelTaskDao
 import com.tencent.devops.process.engine.service.PipelineRuntimeService
 import com.tencent.devops.process.pojo.SubPipelineRefTree
@@ -49,7 +49,7 @@ import org.springframework.stereotype.Service
 class SubPipelineStatusService @Autowired constructor(
     private val pipelineRuntimeService: PipelineRuntimeService,
     private val redisOperation: RedisOperation,
-    private val pipelineBuildHistoryDao: PipelineBuildHistoryDao,
+    private val pipelineBuildDao: PipelineBuildDao,
     private val pipelineModeTaskDao: PipelineModelTaskDao,
     private var dslContext: DSLContext
 ) {
@@ -139,7 +139,7 @@ class SubPipelineStatusService @Autowired constructor(
         // 子流水线树形结构
         var subPipelineTreeInfo = redisOperation.get(getSubPipelineTreeKey(buildId))
         if (subPipelineTreeInfo.isNullOrEmpty() ) {
-            val historyRecord = pipelineBuildHistoryDao.findHistoryByParentBuildId(
+            val historyRecord = pipelineBuildDao.findHistoryByParentBuildId(
                 dslContext = dslContext,
                 parentBuildId = buildId
             )
@@ -171,7 +171,7 @@ class SubPipelineStatusService @Autowired constructor(
             return ""
         }
         history.forEach { it ->
-            val historyRecord = pipelineBuildHistoryDao.findHistoryByParentBuildId(
+            val historyRecord = pipelineBuildDao.findHistoryByParentBuildId(
                 dslContext = dslContext,
                 parentBuildId = it.buildId
             )

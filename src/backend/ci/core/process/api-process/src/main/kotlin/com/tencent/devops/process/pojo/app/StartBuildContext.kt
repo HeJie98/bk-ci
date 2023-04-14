@@ -43,6 +43,8 @@ import com.tencent.devops.process.utils.PIPELINE_SKIP_FAILED_TASK
 import com.tencent.devops.process.utils.PIPELINE_START_CHANNEL
 import com.tencent.devops.process.utils.PIPELINE_START_PARENT_BUILD_ID
 import com.tencent.devops.process.utils.PIPELINE_START_PARENT_BUILD_TASK_ID
+import com.tencent.devops.process.utils.PIPELINE_START_PARENT_PIPELINE_ID
+import com.tencent.devops.process.utils.PIPELINE_START_PARENT_PROJECT_ID
 import com.tencent.devops.process.utils.PIPELINE_START_TASK_ID
 import com.tencent.devops.process.utils.PIPELINE_START_TYPE
 import com.tencent.devops.process.utils.PIPELINE_START_USER_ID
@@ -66,6 +68,8 @@ data class StartBuildContext(
     val userId: String,
     val triggerUser: String,
     val startType: StartType,
+    val parentProjectId:String?,
+    val parentPipelineId:String?,
     val parentBuildId: String?,
     val parentTaskId: String?,
     val channelCode: ChannelCode,
@@ -196,6 +200,8 @@ data class StartBuildContext(
                 userId = params[PIPELINE_START_USER_ID].toString(),
                 triggerUser = params[PIPELINE_START_USER_NAME].toString(),
                 startType = StartType.valueOf(params[PIPELINE_START_TYPE] as String),
+                parentProjectId = params[PIPELINE_START_PARENT_PROJECT_ID],
+                parentPipelineId = params[PIPELINE_START_PARENT_PIPELINE_ID],
                 parentBuildId = params[PIPELINE_START_PARENT_BUILD_ID],
                 parentTaskId = params[PIPELINE_START_PARENT_BUILD_TASK_ID],
                 channelCode = if (params[PIPELINE_START_CHANNEL] != null) {
