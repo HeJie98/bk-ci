@@ -23,38 +23,18 @@
  * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
  */
 
 package com.tencent.devops.repository.pojo
 
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.swagger.annotations.ApiModel
+import io.swagger.annotations.ApiModelProperty
 
-@ApiModel("代码库模型-多态基类")
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "@type")
-@JsonSubTypes(
-    JsonSubTypes.Type(value = CodeSvnRepository::class, name = CodeSvnRepository.classType),
-    JsonSubTypes.Type(value = CodeGitRepository::class, name = CodeGitRepository.classType),
-    JsonSubTypes.Type(value = CodeGitlabRepository::class, name = CodeGitlabRepository.classType),
-    JsonSubTypes.Type(value = GithubRepository::class, name = GithubRepository.classType),
-    JsonSubTypes.Type(value = CodeTGitRepository::class, name = CodeTGitRepository.classType),
-    JsonSubTypes.Type(value = CodeP4Repository::class, name = CodeP4Repository.classType)
+@ApiModel("代码库重命名")
+data class RepoRename(
+    @ApiModelProperty("代码库修改后的名称", required = true)
+    val name: String,
+    @ApiModelProperty("代码库修改前的名称", required = false)
+    val oldName: String = ""
 )
-interface Repository {
-    val aliasName: String
-    val url: String
-    val credentialId: String
-    val projectName: String
-    var userName: String
-    val projectId: String?
-    val repoHashId: String?
-    val enablePac: Boolean?
-    val pacProjectId: String?
-
-    fun isLegal() = url.startsWith(getStartPrefix())
-
-    fun getStartPrefix(): String
-
-    fun getFormatURL() = url
-}

@@ -392,4 +392,16 @@ class RepositoryDao {
                 .execute()
         }
     }
+
+    fun getPacProjectIdByUrl(
+        dslContext: DSLContext,
+        repoUrl: String
+    ): TRepositoryRecord? {
+        with(TRepository.T_REPOSITORY) {
+            return dslContext.selectFrom(this)
+                .where(URL.eq(repoUrl))
+                .and(IS_DELETED.eq(false))
+                .fetchAny()
+        }
+    }
 }

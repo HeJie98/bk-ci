@@ -38,6 +38,9 @@ import com.tencent.devops.common.pipeline.utils.RepositoryConfigUtils.buildConfi
 import com.tencent.devops.common.service.prometheus.BkTimed
 import com.tencent.devops.common.web.RestResource
 import com.tencent.devops.repository.api.UserRepositoryResource
+import com.tencent.devops.repository.pojo.RepoRename
+import com.tencent.devops.repository.pojo.RepoUpdateSetting
+import com.tencent.devops.repository.pojo.PipelineRelatedRepo
 import com.tencent.devops.repository.pojo.Repository
 import com.tencent.devops.repository.pojo.RepositoryId
 import com.tencent.devops.repository.pojo.RepositoryInfo
@@ -290,5 +293,36 @@ class UserRepositoryResourceImpl @Autowired constructor(
         }
         repositoryService.userUnLock(userId, projectId, repositoryHashId)
         return Result(true)
+    }
+
+    override fun listRelatedPipeline(
+        userId: String,
+        projectId: String,
+        repositoryHashId: String,
+        page: Int?,
+        pageSize: Int?
+    ): Result<PipelineRelatedRepo> {
+        TODO("Not yet implemented")
+    }
+
+    override fun getPacProjectId(userId: String, repoUrl: String): Result<String?> {
+        TODO("Not yet implemented")
+    }
+
+    override fun enablePac(userId: String, projectId: String, repositoryHashId: String): Result<Boolean> {
+        TODO("Not yet implemented")
+    }
+
+    override fun updateRepoSetting(
+        userId: String,
+        projectId: String,
+        repositoryHashId: String,
+        repoUpdateSetting: RepoUpdateSetting
+    ): Result<Boolean> {
+        TODO("Not yet implemented")
+    }
+
+    override fun rename(userId: String, projectId: String, repositoryHashId: String, repoRename: RepoRename) {
+        TODO("Not yet implemented")
     }
 }
