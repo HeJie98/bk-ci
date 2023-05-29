@@ -35,6 +35,7 @@ import com.tencent.devops.repository.constant.RepositoryMessageCode.GITHUB_INVAL
 import com.tencent.devops.repository.dao.RepositoryDao
 import com.tencent.devops.repository.dao.RepositoryGithubDao
 import com.tencent.devops.repository.pojo.GithubRepository
+import com.tencent.devops.repository.pojo.RepoUpdateSetting
 import com.tencent.devops.repository.pojo.auth.RepoAuthInfo
 import com.tencent.devops.repository.pojo.enums.RepoAuthType
 import org.jooq.DSLContext
@@ -114,4 +115,10 @@ class CodeGithubRepositoryService @Autowired constructor(
     override fun getAuthInfo(repositoryIds: List<Long>): Map<Long, RepoAuthInfo> {
         return repositoryIds.associateWith { RepoAuthInfo(authType = RepoAuthType.OAUTH.name, credentialId = "") }
     }
+
+    override fun updateSetting(
+        projectId: String,
+        repositoryHashId: String,
+        repoUpdateSetting: RepoUpdateSetting
+    ) = Unit
 }

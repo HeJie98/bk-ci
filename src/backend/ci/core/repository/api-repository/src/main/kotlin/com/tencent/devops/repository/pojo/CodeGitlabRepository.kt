@@ -51,7 +51,11 @@ data class CodeGitlabRepository(
     @ApiModelProperty("仓库认证类型", required = false)
     val authType: RepoAuthType? = RepoAuthType.HTTP,
     @ApiModelProperty("Gitlab仓库ID", required = false)
-    val gitProjectId: Long?
+    val gitProjectId: Long?,
+    @ApiModelProperty("仓库是否开启pac", required = false)
+    override val enablePac: Boolean? = false,
+    @ApiModelProperty("pac项目ID", required = false)
+    override val pacProjectId: String? = null
 ) : Repository {
     companion object {
         const val classType = "codeGitLab"

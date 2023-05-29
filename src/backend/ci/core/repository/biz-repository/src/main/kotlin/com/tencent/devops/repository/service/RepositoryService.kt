@@ -37,6 +37,7 @@ import com.tencent.devops.common.api.exception.OperationException
 import com.tencent.devops.common.api.exception.ParamBlankException
 import com.tencent.devops.common.api.exception.PermissionForbiddenException
 import com.tencent.devops.common.api.model.SQLPage
+import com.tencent.devops.common.api.pojo.PipelineRefRepositoryTaskInfo
 import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.common.api.util.DHUtil
 import com.tencent.devops.common.api.util.HashUtil
@@ -44,13 +45,21 @@ import com.tencent.devops.common.api.util.MessageUtil
 import com.tencent.devops.common.api.util.timestamp
 import com.tencent.devops.common.api.util.timestampmilli
 import com.tencent.devops.common.auth.api.AuthPermission
+import com.tencent.devops.common.client.Client
+import com.tencent.devops.common.redis.RedisLock
+import com.tencent.devops.common.redis.RedisOperation
 import com.tencent.devops.common.web.utils.I18nUtil
 import com.tencent.devops.model.repository.tables.records.TRepositoryRecord
+import com.tencent.devops.project.api.service.ServiceProjectResource
 import com.tencent.devops.repository.constant.RepositoryMessageCode
 import com.tencent.devops.repository.constant.RepositoryMessageCode.USER_CREATE_PEM_ERROR
 import com.tencent.devops.repository.dao.RepositoryCodeGitDao
 import com.tencent.devops.repository.dao.RepositoryDao
+import com.tencent.devops.repository.dao.RepositoryPipelineTaskDao
 import com.tencent.devops.repository.pojo.CodeGitRepository
+import com.tencent.devops.repository.pojo.PipelineRelatedRepo
+import com.tencent.devops.repository.pojo.RepoRename
+import com.tencent.devops.repository.pojo.RepoUpdateSetting
 import com.tencent.devops.repository.pojo.Repository
 import com.tencent.devops.repository.pojo.RepositoryInfo
 import com.tencent.devops.repository.pojo.RepositoryInfoWithPermission
@@ -59,6 +68,7 @@ import com.tencent.devops.repository.pojo.enums.RepoAuthType
 import com.tencent.devops.repository.pojo.enums.TokenTypeEnum
 import com.tencent.devops.repository.pojo.enums.VisibilityLevelEnum
 import com.tencent.devops.repository.pojo.git.UpdateGitProjectInfo
+import com.tencent.devops.repository.resources.UserRepositoryResourceImpl
 import com.tencent.devops.repository.service.loader.CodeRepositoryServiceRegistrar
 import com.tencent.devops.repository.service.scm.IGitOauthService
 import com.tencent.devops.repository.service.scm.IGitService
@@ -69,6 +79,7 @@ import com.tencent.devops.scm.pojo.GitCommit
 import com.tencent.devops.scm.pojo.GitProjectInfo
 import com.tencent.devops.scm.pojo.GitRepositoryDirItem
 import com.tencent.devops.scm.pojo.GitRepositoryResp
+import com.tencent.devops.scm.utils.code.git.GitUtils
 import java.time.LocalDateTime
 import java.util.Base64
 import javax.ws.rs.NotFoundException
@@ -88,7 +99,10 @@ class RepositoryService @Autowired constructor(
     private val gitService: IGitService,
     private val scmService: IScmService,
     private val dslContext: DSLContext,
-    private val repositoryPermissionService: RepositoryPermissionService
+    private val repositoryPermissionService: RepositoryPermissionService,
+    private val repositoryPipelineTaskDao: RepositoryPipelineTaskDao,
+    private val client: Client,
+    private val redisOperation: RedisOperation
 ) {
 
     @Value("\${repository.git.devopsPrivateToken}")
@@ -1087,6 +1101,182 @@ class RepositoryService @Autowired constructor(
             ref = ref,
             token = token,
             tokenType = finalTokenType
+        )
+    }
+
+    fun getPacProjectId(userId: String, repoUrl: String): String? {
+        val repository = repositoryDao.getPacProjectIdByUrl(dslContext, repoUrl)
+        return repository?.run {
+            val projectInfo = client.get(ServiceProjectResource::class).get(
+                englishName = projectId
+            ).data
+            projectInfo?.projectName
+        }
+    }
+
+    fun enablePac(userId: String, projectId: String, repositoryHashId: String) {
+        val repositoryId = HashUtil.decodeOtherIdToLong(repositoryHashId)
+        // 权限校验
+        validatePermission(
+            user = userId,
+            projectId = projectId,
+            repositoryId = repositoryId,
+            authPermission = AuthPermission.EDIT,
+            message = MessageUtil.getMessageByLocale(
+                messageCode = RepositoryMessageCode.USER_EDIT_PEM_ERROR,
+                params = arrayOf(userId, projectId, repositoryHashId),
+                language = I18nUtil.getLanguage(userId)
+            )
+        )
+        // 获取代码信息
+        val repository = getRepoByHashId(repositoryHashId)
+        val projectName = GitUtils.getProjectName(repository.url)
+        val redisLock = RedisLock(
+            redisOperation = redisOperation,
+            lockKey = "lock:enablePac:${repository.type}:${projectName}",
+            expiredTimeInSeconds = 60
+        )
+        try {
+            if (redisLock.tryLock()){
+                val pacRepo = repositoryDao.getPacProjectIdByUrl(dslContext, repository.url)
+                if (pacRepo != null && pacRepo.repositoryHashId != repository.repositoryHashId) {
+                    // 代码库已开启PAC
+                    throw ErrorCodeException(
+                        errorCode = RepositoryMessageCode.REPO_ENABLED_PAC
+                    )
+                } else {
+                    repositoryDao.updateRepoPacProject(
+                        dslContext = dslContext,
+                        hashId = repositoryHashId,
+                        projectId = projectId,
+                        enablePac = true
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            logger.warn("Failure to enable repository",e)
+            throw ErrorCodeException(
+                errorCode = RepositoryMessageCode.REPO_ENABLE_PAC_FAIL
+            )
+        } finally {
+            redisLock.unlock()
+        }
+    }
+
+    fun updateRepoSetting(
+        userId: String,
+        projectId: String,
+        repositoryHashId: String,
+        repoUpdateSetting: RepoUpdateSetting
+    ) {
+        val repositoryId = HashUtil.decodeOtherIdToLong(repositoryHashId)
+        validatePermission(
+            user = userId,
+            projectId = projectId,
+            repositoryId = repositoryId,
+            authPermission = AuthPermission.EDIT,
+            message = MessageUtil.getMessageByLocale(
+                messageCode = RepositoryMessageCode.USER_EDIT_PEM_ERROR,
+                params = arrayOf(userId, projectId, repositoryHashId),
+                language = I18nUtil.getLanguage(userId)
+            )
+        )
+        val repository = getRepoByHashId(repositoryHashId)
+        val codeRepositoryService = CodeRepositoryServiceRegistrar.getServiceByScmType(repository.type)
+        // 更新通用配置
+        codeRepositoryService.updateSetting(
+            projectId = projectId,
+            repositoryHashId = repositoryHashId,
+            repoUpdateSetting = repoUpdateSetting
+        )
+    }
+
+    fun listRelatedPipeline(
+        userId: String,
+        projectId: String,
+        repositoryHashId: String,
+        limit: Int,
+        offset: Int
+    ) = repositoryPipelineTaskDao.list(
+        dslContext = dslContext,
+        projectId = projectId,
+        repositoryHashId = repositoryHashId,
+        limit = limit,
+        offset = offset
+    ).map {
+        PipelineRelatedRepo(
+            pipelineId = it.pipelineId,
+            pipelineName = it.pipelineName
+        )
+    }
+
+    fun rename(userId: String, projectId: String, repositoryHashId: String, repoRename: RepoRename) {
+        val repositoryId = HashUtil.decodeOtherIdToLong(repositoryHashId)
+        // 权限校验
+        validatePermission(
+            user = userId,
+            projectId = projectId,
+            repositoryId = repositoryId,
+            authPermission = AuthPermission.EDIT,
+            message = MessageUtil.getMessageByLocale(
+                messageCode = RepositoryMessageCode.USER_EDIT_PEM_ERROR,
+                params = arrayOf(userId, projectId, repositoryHashId),
+                language = I18nUtil.getLanguage(userId)
+            )
+        )
+        repositoryDao.rename(
+            dslContext = dslContext,
+            projectId = projectId,
+            hashId = repositoryHashId,
+            newName = repoRename.name
+        )
+    }
+
+    fun getRepoByHashId(hashId: String) = repositoryDao.getRepoByHashId(
+        dslContext = dslContext,
+        hashId = hashId
+    ) ?: throw ErrorCodeException(
+        errorCode = RepositoryMessageCode.GIT_NOT_FOUND,
+        params = arrayOf(hashId)
+    )
+
+    fun savePipelineTaskInfo(
+        pipelineId: String,
+        taskInfos: List<PipelineRefRepositoryTaskInfo>
+    ) {
+        val redisLock = RedisLock(
+            redisOperation = redisOperation,
+            lockKey = "lock:savePipelineTaskInfo:$pipelineId",
+            expiredTimeInSeconds = 60
+        )
+        try {
+            if (redisLock.tryLock()) {
+                deletePipelineTaskInfo(pipelineId)
+                taskInfos.forEach {
+                    repositoryPipelineTaskDao.save(
+                        dslContext = dslContext,
+                        projectId = it.projectId,
+                        pipelineId = pipelineId,
+                        pipelineName = it.pipelineName,
+                        repositoryHashId = it.repositoryHashId,
+                        taskId = it.taskId ?: "",
+                        atomCode = it.atomCode
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            logger.warn("Failure to save pipeline ref repository info", e)
+        } finally {
+            redisLock.unlock()
+        }
+    }
+
+    fun deletePipelineTaskInfo(
+        pipelineId: String
+    ) {
+        repositoryPipelineTaskDao.delete(
+            dslContext = dslContext,
+            pipelineId = pipelineId
         )
     }
 

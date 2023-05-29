@@ -301,16 +301,47 @@ class UserRepositoryResourceImpl @Autowired constructor(
         repositoryHashId: String,
         page: Int?,
         pageSize: Int?
-    ): Result<PipelineRelatedRepo> {
-        TODO("Not yet implemented")
+    ): Result<List<PipelineRelatedRepo>> {
+        val pageNotNull = page ?: 0
+        val pageSizeNotNull = pageSize ?: PageSize
+        val limit = PageUtil.convertPageSizeToSQLLimit(pageNotNull, pageSizeNotNull)
+        return Result(
+            repositoryService.listRelatedPipeline(
+                projectId = projectId,
+                userId = userId,
+                repositoryHashId = repositoryHashId,
+                limit = limit.limit,
+                offset = limit.offset
+            )
+        )
     }
 
     override fun getPacProjectId(userId: String, repoUrl: String): Result<String?> {
-        TODO("Not yet implemented")
+        if (userId.isBlank()) {
+            throw ParamBlankException("Invalid userId")
+        }
+        if (repoUrl.isBlank()) {
+            throw ParamBlankException("Invalid repoUrl")
+        }
+        return Result(repositoryService.getPacProjectId(userId, repoUrl))
     }
 
     override fun enablePac(userId: String, projectId: String, repositoryHashId: String): Result<Boolean> {
-        TODO("Not yet implemented")
+        if (userId.isBlank()) {
+            throw ParamBlankException("Invalid userId")
+        }
+        if (projectId.isBlank()) {
+            throw ParamBlankException("Invalid projectId")
+        }
+        if (repositoryHashId.isBlank()) {
+            throw ParamBlankException("Invalid repositoryHashId")
+        }
+        repositoryService.enablePac(
+            userId = userId,
+            projectId = projectId,
+            repositoryHashId = repositoryHashId
+        )
+        return Result(true)
     }
 
     override fun updateRepoSetting(
@@ -319,10 +350,48 @@ class UserRepositoryResourceImpl @Autowired constructor(
         repositoryHashId: String,
         repoUpdateSetting: RepoUpdateSetting
     ): Result<Boolean> {
-        TODO("Not yet implemented")
+        if (userId.isBlank()) {
+            throw ParamBlankException("Invalid userId")
+        }
+        if (projectId.isBlank()) {
+            throw ParamBlankException("Invalid projectId")
+        }
+        if (repositoryHashId.isBlank()) {
+            throw ParamBlankException("Invalid repositoryHashId")
+        }
+        repositoryService.updateRepoSetting(
+            userId = userId,
+            projectId = projectId,
+            repositoryHashId = repositoryHashId,
+            repoUpdateSetting = repoUpdateSetting
+        )
+        return Result(true)
     }
 
-    override fun rename(userId: String, projectId: String, repositoryHashId: String, repoRename: RepoRename) {
-        TODO("Not yet implemented")
+    override fun rename(
+        userId: String,
+        projectId: String,
+        repositoryHashId: String,
+        repoRename: RepoRename
+    ): Result<Boolean> {
+        if (userId.isBlank()) {
+            throw ParamBlankException("Invalid userId")
+        }
+        if (projectId.isBlank()) {
+            throw ParamBlankException("Invalid projectId")
+        }
+        if (repositoryHashId.isBlank()) {
+            throw ParamBlankException("Invalid repositoryHashId")
+        }
+        if (repoRename.name.isBlank()){
+            throw ParamBlankException("Invalid repoName")
+        }
+        repositoryService.rename(
+            userId = userId,
+            projectId = projectId,
+            repositoryHashId = repositoryHashId,
+            repoRename = repoRename
+        )
+        return Result(true)
     }
 }

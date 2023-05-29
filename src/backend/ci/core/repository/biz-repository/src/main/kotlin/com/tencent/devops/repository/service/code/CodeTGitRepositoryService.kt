@@ -39,6 +39,7 @@ import com.tencent.devops.repository.constant.RepositoryMessageCode.USER_SECRET_
 import com.tencent.devops.repository.dao.RepositoryCodeGitDao
 import com.tencent.devops.repository.dao.RepositoryDao
 import com.tencent.devops.repository.pojo.CodeTGitRepository
+import com.tencent.devops.repository.pojo.RepoUpdateSetting
 import com.tencent.devops.repository.pojo.auth.RepoAuthInfo
 import com.tencent.devops.repository.pojo.credential.RepoCredentialInfo
 import com.tencent.devops.repository.pojo.enums.RepoAuthType
@@ -277,6 +278,14 @@ class CodeTGitRepositoryService @Autowired constructor(
             projectId = projectId,
             repository = repository
         )
+    }
+
+    override fun updateSetting(
+        projectId: String,
+        repositoryHashId: String,
+        repoUpdateSetting: RepoUpdateSetting
+    ) {
+
     }
 
     companion object {

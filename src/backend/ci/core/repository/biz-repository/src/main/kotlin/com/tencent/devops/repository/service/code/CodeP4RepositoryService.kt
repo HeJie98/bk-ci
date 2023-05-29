@@ -36,6 +36,7 @@ import com.tencent.devops.repository.constant.RepositoryMessageCode.P4_INVALID
 import com.tencent.devops.repository.dao.RepositoryCodeP4Dao
 import com.tencent.devops.repository.dao.RepositoryDao
 import com.tencent.devops.repository.pojo.CodeP4Repository
+import com.tencent.devops.repository.pojo.RepoUpdateSetting
 import com.tencent.devops.repository.pojo.Repository
 import com.tencent.devops.repository.pojo.auth.RepoAuthInfo
 import com.tencent.devops.repository.pojo.credential.RepoCredentialInfo
@@ -194,6 +195,12 @@ class CodeP4RepositoryService @Autowired constructor(
             repository = repository
         )
     }
+
+    override fun updateSetting(
+        projectId: String,
+        repositoryHashId: String,
+        repoUpdateSetting: RepoUpdateSetting
+    ) = Unit
 
     companion object {
         private val logger = LoggerFactory.getLogger(CodeP4RepositoryService::class.java)

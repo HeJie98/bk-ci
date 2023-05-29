@@ -27,8 +27,10 @@
 
 package com.tencent.devops.repository.dao
 
+import com.tencent.bkrepo.common.artifact.constant.PROJECT_ID
 import com.tencent.devops.model.repository.tables.TRepositoryCodeGit
 import com.tencent.devops.model.repository.tables.records.TRepositoryCodeGitRecord
+import com.tencent.devops.repository.pojo.RepoUpdateSetting
 import com.tencent.devops.repository.pojo.UpdateRepositoryInfoRequest
 import com.tencent.devops.repository.pojo.enums.RepoAuthType
 import org.jooq.DSLContext
@@ -174,6 +176,21 @@ class RepositoryCodeGitDao {
             dslContext.update(this)
                 .set(GIT_PROJECT_ID, gitProjectId)
                 .where(conditions)
+                .execute()
+        }
+    }
+
+    fun updateRepoSetting(
+        dslContext: DSLContext,
+        projectId: String,
+        id: Long,
+        repoUpdateSetting: RepoUpdateSetting
+    ) {
+        with(TRepositoryCodeGit.T_REPOSITORY_CODE_GIT) {
+            dslContext.update(this)
+                .set(ENABLE_MR_BLOCK, repoUpdateSetting.enableMrBlock)
+                .set(UPDATED_TIME, LocalDateTime.now())
+                .where(REPOSITORY_ID.eq(id).and(PROJECT_ID, projectId))
                 .execute()
         }
     }

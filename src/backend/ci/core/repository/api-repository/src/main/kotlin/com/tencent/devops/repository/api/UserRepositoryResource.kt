@@ -295,7 +295,7 @@ interface UserRepositoryResource {
         @ApiParam("每页多少条", required = false, defaultValue = "20")
         @QueryParam("pageSize")
         pageSize: Int?
-    ): Result<PipelineRelatedRepo>
+    ): Result<List<PipelineRelatedRepo>>
 
     @ApiOperation("根据代码库url获取关联的项目ID")
     @GET
@@ -356,5 +356,5 @@ interface UserRepositoryResource {
         repositoryHashId: String,
         @ApiParam("代码库重命名")
         repoRename: RepoRename
-    )
+    ): Result<Boolean>
 }

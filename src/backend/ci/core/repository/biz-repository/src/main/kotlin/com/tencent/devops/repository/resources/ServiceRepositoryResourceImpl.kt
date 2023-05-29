@@ -31,6 +31,7 @@ import com.tencent.devops.common.api.enums.RepositoryType
 import com.tencent.devops.common.api.enums.ScmType
 import com.tencent.devops.common.api.exception.ParamBlankException
 import com.tencent.devops.common.api.pojo.Page
+import com.tencent.devops.common.api.pojo.PipelineRefRepositoryTaskInfo
 import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.common.api.util.PageUtil
 import com.tencent.devops.common.auth.api.AuthPermission
@@ -201,5 +202,20 @@ class ServiceRepositoryResourceImpl @Autowired constructor(
         repositoryIds: Set<String>
     ): Result<List<Repository>> {
         return (Result(repositoryService.getRepositoryByHashIds(repositoryIds.toList())))
+    }
+
+    override fun savePipelineTaskInfo(
+        pipelineId: String,
+        taskInfos: List<PipelineRefRepositoryTaskInfo>
+    ): Result<Boolean> {
+        repositoryService.savePipelineTaskInfo(pipelineId, taskInfos)
+        return Result(true)
+    }
+
+    override fun deletePipelineTaskInfo(pipelineId: String): Result<Boolean> {
+        repositoryService.deletePipelineTaskInfo(
+            pipelineId = pipelineId
+        )
+        return Result(true)
     }
 }

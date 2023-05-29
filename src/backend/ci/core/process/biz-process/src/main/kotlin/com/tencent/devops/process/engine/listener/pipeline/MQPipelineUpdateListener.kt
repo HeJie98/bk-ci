@@ -35,6 +35,7 @@ import com.tencent.devops.process.engine.control.CallBackControl
 import com.tencent.devops.process.engine.pojo.event.PipelineUpdateEvent
 import com.tencent.devops.process.engine.service.AgentPipelineRefService
 import com.tencent.devops.process.engine.service.PipelineAtomStatisticsService
+import com.tencent.devops.process.engine.service.PipelineRefRepositoryService
 import com.tencent.devops.process.engine.service.PipelineRuntimeService
 import com.tencent.devops.process.engine.service.PipelineWebhookService
 import org.springframework.beans.factory.annotation.Autowired
@@ -52,6 +53,7 @@ class MQPipelineUpdateListener @Autowired constructor(
     private val callBackControl: CallBackControl,
     private val agentPipelineRefService: AgentPipelineRefService,
     private val pipelineWebhookService: PipelineWebhookService,
+    private val pipelineRepositoryService: PipelineRefRepositoryService,
     pipelineEventDispatcher: PipelineEventDispatcher
 ) : BaseListener<PipelineUpdateEvent>(pipelineEventDispatcher) {
 
@@ -80,6 +82,15 @@ class MQPipelineUpdateListener @Autowired constructor(
 
         watcher.safeAround("addWebhook") {
             pipelineWebhookService.addWebhook(
+                projectId = event.projectId,
+                pipelineId = event.pipelineId,
+                version = event.version,
+                userId = event.userId
+            )
+        }
+
+        watcher.safeAround("savePipelineRefRepository") {
+            pipelineRepositoryService.saveRepositoryRefInfo(
                 projectId = event.projectId,
                 pipelineId = event.pipelineId,
                 version = event.version,

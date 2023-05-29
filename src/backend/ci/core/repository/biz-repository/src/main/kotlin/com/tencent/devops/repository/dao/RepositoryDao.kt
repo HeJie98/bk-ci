@@ -401,7 +401,50 @@ class RepositoryDao {
             return dslContext.selectFrom(this)
                 .where(URL.eq(repoUrl))
                 .and(IS_DELETED.eq(false))
+                .and(ENABLE_PAC.eq(true))
                 .fetchAny()
+        }
+    }
+
+    fun getRepoByHashId(
+        dslContext: DSLContext,
+        hashId: String
+    ): TRepositoryRecord? {
+        with(TRepository.T_REPOSITORY) {
+            return dslContext.selectFrom(this)
+                .where(REPOSITORY_HASH_ID.eq(hashId))
+                .and(IS_DELETED.eq(false))
+                .fetchAny()
+        }
+    }
+
+    fun updateRepoPacProject(
+        dslContext: DSLContext,
+        hashId: String,
+        projectId: String?,
+        enablePac: Boolean?
+    ) {
+        return with(TRepository.T_REPOSITORY) {
+            val setStep = dslContext.update(this)
+                .set(PROJECT_ID, projectId)
+            if (enablePac != null) {
+                setStep.set(ENABLE_PAC, enablePac)
+            }
+            setStep.where(REPOSITORY_HASH_ID.eq(hashId)).execute()
+        }
+    }
+
+    fun rename(
+        dslContext: DSLContext,
+        hashId: String,
+        projectId: String,
+        newName: String
+    ) {
+        with(TRepository.T_REPOSITORY) {
+            dslContext.update(this)
+                .set(ALIAS_NAME, newName)
+                .where(REPOSITORY_HASH_ID.eq(hashId).and(PROJECT_ID.eq(projectId)))
+                .execute()
         }
     }
 }

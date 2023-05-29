@@ -35,6 +35,7 @@ import com.tencent.devops.process.engine.control.CallBackControl
 import com.tencent.devops.process.engine.pojo.event.PipelineDeleteEvent
 import com.tencent.devops.process.engine.service.AgentPipelineRefService
 import com.tencent.devops.process.engine.service.PipelineAtomStatisticsService
+import com.tencent.devops.process.engine.service.PipelineRefRepositoryService
 import com.tencent.devops.process.engine.service.PipelineRuntimeService
 import com.tencent.devops.process.engine.service.PipelineWebhookService
 import com.tencent.devops.process.service.label.PipelineGroupService
@@ -55,6 +56,7 @@ class MQPipelineDeleteListener @Autowired constructor(
     private val pipelineAtomStatisticsService: PipelineAtomStatisticsService,
     private val callBackControl: CallBackControl,
     private val agentPipelineRefService: AgentPipelineRefService,
+    private val pipelineRepositoryService: PipelineRefRepositoryService,
     pipelineEventDispatcher: PipelineEventDispatcher
 ) : BaseListener<PipelineDeleteEvent>(pipelineEventDispatcher) {
 
@@ -88,6 +90,12 @@ class MQPipelineDeleteListener @Autowired constructor(
                 projectId = event.projectId,
                 pipelineId = event.pipelineId,
                 deleteFlag = true
+            )
+        }
+
+        watcher.safeAround("deletePipelineRefRepository") {
+            pipelineRepositoryService.deleteRepositoryRefInfo(
+                pipelineId = event.pipelineId
             )
         }
 

@@ -37,6 +37,7 @@ import com.tencent.devops.repository.constant.RepositoryMessageCode.USER_SECRET_
 import com.tencent.devops.repository.dao.RepositoryCodeGitLabDao
 import com.tencent.devops.repository.dao.RepositoryDao
 import com.tencent.devops.repository.pojo.CodeGitlabRepository
+import com.tencent.devops.repository.pojo.RepoUpdateSetting
 import com.tencent.devops.repository.pojo.auth.RepoAuthInfo
 import com.tencent.devops.repository.pojo.credential.RepoCredentialInfo
 import com.tencent.devops.repository.pojo.enums.RepoAuthType
@@ -257,6 +258,12 @@ class CodeGitlabRepositoryService @Autowired constructor(
             repository = repository
         )
     }
+
+    override fun updateSetting(
+        projectId: String,
+        repositoryHashId: String,
+        repoUpdateSetting: RepoUpdateSetting
+    ) = Unit
 
     companion object {
         private val logger = LoggerFactory.getLogger(CodeGitlabRepositoryService::class.java)

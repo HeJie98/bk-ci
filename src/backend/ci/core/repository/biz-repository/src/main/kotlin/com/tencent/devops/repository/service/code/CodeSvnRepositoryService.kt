@@ -40,6 +40,7 @@ import com.tencent.devops.repository.dao.RepositoryDao
 import com.tencent.devops.repository.pojo.CodeSvnRepository
 import com.tencent.devops.repository.pojo.CodeSvnRepository.Companion.SVN_TYPE_HTTP
 import com.tencent.devops.repository.pojo.CodeSvnRepository.Companion.SVN_TYPE_SSH
+import com.tencent.devops.repository.pojo.RepoUpdateSetting
 import com.tencent.devops.repository.pojo.Repository
 import com.tencent.devops.repository.pojo.auth.RepoAuthInfo
 import com.tencent.devops.repository.pojo.credential.RepoCredentialInfo
@@ -245,6 +246,12 @@ class CodeSvnRepositoryService @Autowired constructor(
             repository = repository
         )
     }
+
+    override fun updateSetting(
+        projectId: String,
+        repositoryHashId: String,
+        repoUpdateSetting: RepoUpdateSetting
+    ) = Unit
 
     companion object {
         private val logger = LoggerFactory.getLogger(CodeSvnRepositoryService::class.java)

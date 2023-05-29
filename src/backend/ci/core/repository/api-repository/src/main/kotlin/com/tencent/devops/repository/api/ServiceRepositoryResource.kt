@@ -32,6 +32,7 @@ import com.tencent.devops.common.api.auth.AUTH_HEADER_USER_ID_DEFAULT_VALUE
 import com.tencent.devops.common.api.enums.RepositoryType
 import com.tencent.devops.common.api.enums.ScmType
 import com.tencent.devops.common.api.pojo.Page
+import com.tencent.devops.common.api.pojo.PipelineRefRepositoryTaskInfo
 import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.repository.pojo.Repository
 import com.tencent.devops.repository.pojo.RepositoryId
@@ -217,4 +218,24 @@ interface ServiceRepositoryResource {
         @QueryParam("repositoryIds")
         repositoryIds: Set<String>
     ): Result<List<Repository>>
+
+    @ApiOperation("保存流水线Task中代码库信息")
+    @PUT
+    @Path("/{pipelineId}/savePipelineTaskInfo")
+    fun savePipelineTaskInfo(
+        @ApiParam("流水线ID", required = true)
+        @PathParam("pipelineId")
+        pipelineId:String,
+        @ApiParam(value = "代码库关联信息", required = true)
+        taskInfos: List<PipelineRefRepositoryTaskInfo>
+    ): Result<Boolean>
+
+    @ApiOperation("删除流水线Task中代码库信息")
+    @GET
+    @Path("/{pipelineId}//deletePipelineTaskInfo")
+    fun deletePipelineTaskInfo(
+        @ApiParam("流水线ID", required = true)
+        @PathParam("pipelineId")
+        pipelineId:String
+    ): Result<Boolean>
 }
