@@ -175,5 +175,18 @@ CREATE TABLE IF NOT EXISTS `T_REPOSITORY_CODE_P4` (
   PRIMARY KEY (`REPOSITORY_ID`)
 ) ENGINE=INNODB DEFAULT CHARSET=utf8mb4;
 
+-- ----------------------------
+-- Table structure for t_repository_pipeline_task
+-- ----------------------------
 
+CREATE TABLE IF NOT EXISTS `T_REPOSITORY_PIPELINE_TASK`  (
+  `PROJECT_ID` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '蓝盾项目ID',
+  `PIPELINE_ID` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '流水线ID',
+  `PIPELINE_NAME` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '流水线名称',
+  `REPOSITORY_HASH_ID` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '代码库hashID',
+  `TASK_ID` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '任务ID',
+  `ATOM_CODE` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '' COMMENT '插件的唯一标识',
+  `CREATE_TIME` datetime(3) NULL DEFAULT NULL COMMENT '创建时间',
+  `UPDATE_TIME` datetime(3) NULL DEFAULT NULL COMMENT '更新时间'
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COMMENT = '流水线任务表';
 SET FOREIGN_KEY_CHECKS = 1;
