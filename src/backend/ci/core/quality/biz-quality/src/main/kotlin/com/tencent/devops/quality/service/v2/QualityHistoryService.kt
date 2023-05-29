@@ -284,7 +284,8 @@ class QualityHistoryService @Autowired constructor(
                         pipelineId = pipelineId,
                         buildId = buildId,
                         detail = record.detail,
-                        client = client
+                        client = client,
+                        logPrompt = null
                     )
                 }
             }
@@ -540,7 +541,8 @@ class QualityHistoryService @Autowired constructor(
                             pipelineId = pipelineId ?: "",
                             buildId = buildId ?: "",
                             detail = record.detail,
-                            client = client
+                            client = client,
+                            logPrompt = record.logPrompt
                         )
                     }
                 }
@@ -595,12 +597,12 @@ class QualityHistoryService @Autowired constructor(
                 if (result == RuleInterceptResult.PASS) {
                     I18nUtil.getCodeLanMessage(
                         messageCode = BK_VALIDATION_PASSED,
-                        params = arrayOf("$pipelineName", buildName, "$time")
+                        params = arrayOf("$pipelineName", buildName, time)
                     )
                 } else {
                     I18nUtil.getCodeLanMessage(
                         messageCode = BK_VALIDATION_INTERCEPTED,
-                        params = arrayOf("$pipelineName", buildName, "$time")
+                        params = arrayOf("$pipelineName", buildName, time)
                     )
                 }
             } else {
