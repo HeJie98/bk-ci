@@ -71,4 +71,13 @@ interface OPRepositoryResource {
     @POST
     @Path("/updateGitProjectId")
     fun updateGitProjectId()
+
+    @ApiOperation("更新工蜂代码库地址")
+    @POST
+    @Path("/updateCodeGitRepoUrl")
+    fun updateCodeGitRepoUrl(
+        @ApiParam(value = "蓝盾项目ID", required = false)
+        @QueryParam("projectId")
+        projectId: String?
+    )
 }

@@ -55,7 +55,9 @@ data class CodeGitRepository(
     @ApiModelProperty("仓库是否开启pac", required = false)
     override val enablePac: Boolean? = false,
     @ApiModelProperty("pac项目ID", required = false)
-    override val pacProjectId: String? = null
+    override val pacProjectId: String? = null,
+    @ApiModelProperty("代码库通用设置", required = false)
+    val settings: RepoUpdateSetting? = null
 ) : Repository {
     companion object {
         const val classType = "codeGit"

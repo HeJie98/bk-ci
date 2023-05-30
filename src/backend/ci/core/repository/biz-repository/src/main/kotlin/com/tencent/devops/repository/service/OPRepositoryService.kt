@@ -262,7 +262,7 @@ class OPRepositoryService @Autowired constructor(
         val limit = 100
         logger.info("OPRepositoryService:begin updateCodeGitProjectId")
         do {
-            val repoRecords = codeGitDao.getAllRepo(dslContext, limit, offset)
+            val repoRecords = codeGitDao.getAllRepo(dslContext,null, limit, offset)
             val repoSize = repoRecords?.size
             logger.info("repoSize:$repoSize")
             val repositoryIds = repoRecords?.map { it.repositoryId } ?: ArrayList()
@@ -388,7 +388,77 @@ class OPRepositoryService @Autowired constructor(
         }
     }
 
+    fun updateCodeGitRepoUrl(projectId: String?) {
+        val startTime = System.currentTimeMillis()
+        logger.info("OPRepositoryService:begin updateCodeGitRepoUrl-----------")
+        val threadPoolExecutor = ThreadPoolExecutor(
+            1,
+            1,
+            0,
+            TimeUnit.SECONDS,
+            LinkedBlockingQueue(1),
+            Executors.defaultThreadFactory(),
+            ThreadPoolExecutor.AbortPolicy()
+        )
+        threadPoolExecutor.submit {
+            logger.info("OPRepositoryService:begin updateCodeGitRepoUrl threadPoolExecutor-----------")
+            try {
+                var offset = 0
+                val limit = 100
+                logger.info("OPRepositoryService:begin updateCodeGitProjectId")
+                do {
+                    // 获取所有OAUTH授权的代码库
+                    val repoRecords = codeGitDao.getAllRepo(dslContext, RepoAuthType.OAUTH, limit, offset)
+                    val repoSize = repoRecords?.size
+                    logger.info("repoSize:$repoSize")
+                    val repositoryIds = repoRecords?.map { it.repositoryId } ?: ArrayList()
+                    // 仅处理未删除的代码库地址
+                    val repositoryList = repositoryDao.getRepoByIds(
+                        repositoryIds = repositoryIds,
+                        dslContext = dslContext
+                    )?.filter {
+                        if (projectId == null) {
+                            !it.isDeleted
+                        } else {
+                            !it.isDeleted && it.projectId == projectId
+                        }
+                    } ?: listOf()
+                    // 修改url地址
+                    repositoryList.forEach {
+                        // 校验代码库地址，是否为[https]开头,以[.git]结尾
+                        // 蓝鲸API或直接调用user接口关联的代码库，代码库地址可能跟web端关联的不一样
+                        var repoUrl = it.url
+                        // 替换前缀
+                        repoUrl = repoUrl.replaceFirst("http://", REPO_URL_OAUTH_PREFIX)
+                        if (!repoUrl.endsWith(REPO_URL_OAUTH_POSTFIX)) {
+                            repoUrl += REPO_URL_OAUTH_POSTFIX
+                        }
+                        repositoryDao.updateRepoUrl(
+                            dslContext = dslContext,
+                            id = it.repositoryId,
+                            newRepoUrl = repoUrl
+                        )
+                    }
+                    offset += limit
+                    // 避免限流，增加一秒休眠时间
+                    Thread.sleep(1 * 1000)
+                } while (repoSize == 100)
+            } catch (e: Exception) {
+                logger.warn("OpRepositoryService：updateCodeGitRepoUrl failed | $e ")
+            } finally {
+                threadPoolExecutor.shutdown()
+            }
+        }
+        logger.info("OPRepositoryService:finish updateCodeGitRepoUrl-----------")
+        logger.info("updateCodeGitRepoUrl time cost: ${System.currentTimeMillis() - startTime}")
+
+    }
+
     companion object {
         private val logger = LoggerFactory.getLogger(OPRepositoryService::class.java)
+        // OAUTH授权时，代码库地址前缀
+        const val REPO_URL_OAUTH_PREFIX = "https://"
+        // OAUTH授权时，代码库地址后缀
+        const val REPO_URL_OAUTH_POSTFIX = ".git"
     }
 }

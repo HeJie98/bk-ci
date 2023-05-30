@@ -62,4 +62,8 @@ class OPRepositoryResourceImpl @Autowired constructor(
     override fun updateGitProjectId() {
         opRepositoryService.updateGitProjectId()
     }
+
+    override fun updateCodeGitRepoUrl(projectId: String?) {
+        opRepositoryService.updateCodeGitRepoUrl(projectId)
+    }
 }

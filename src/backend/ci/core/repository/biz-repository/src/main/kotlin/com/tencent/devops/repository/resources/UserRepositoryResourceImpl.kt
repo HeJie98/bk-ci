@@ -301,19 +301,18 @@ class UserRepositoryResourceImpl @Autowired constructor(
         repositoryHashId: String,
         page: Int?,
         pageSize: Int?
-    ): Result<List<PipelineRelatedRepo>> {
+    ): Result<Page<PipelineRelatedRepo>> {
         val pageNotNull = page ?: 0
         val pageSizeNotNull = pageSize ?: PageSize
         val limit = PageUtil.convertPageSizeToSQLLimit(pageNotNull, pageSizeNotNull)
-        return Result(
-            repositoryService.listRelatedPipeline(
-                projectId = projectId,
-                userId = userId,
-                repositoryHashId = repositoryHashId,
-                limit = limit.limit,
-                offset = limit.offset
-            )
+        val result = repositoryService.listRelatedPipeline(
+            projectId = projectId,
+            userId = userId,
+            repositoryHashId = repositoryHashId,
+            limit = limit.limit,
+            offset = limit.offset
         )
+        return Result(Page(pageNotNull, pageSizeNotNull, result.count, result.records))
     }
 
     override fun getPacProjectId(userId: String, repoUrl: String): Result<String?> {
@@ -393,5 +392,52 @@ class UserRepositoryResourceImpl @Autowired constructor(
             repoRename = repoRename
         )
         return Result(true)
+    }
+
+    override fun disablePac(
+        userId: String,
+        projectId: String,
+        repositoryHashId: String
+    ): Result<Boolean> {
+        if (userId.isBlank()) {
+            throw ParamBlankException("Invalid userId")
+        }
+        if (projectId.isBlank()) {
+            throw ParamBlankException("Invalid projectId")
+        }
+        if (repositoryHashId.isBlank()) {
+            throw ParamBlankException("Invalid repositoryHashId")
+        }
+        // 禁用PAC，默认检查.ci文件夹是否存在
+        repositoryService.disablePac(
+            userId = userId,
+            projectId = projectId,
+            repositoryHashId = repositoryHashId
+        )
+        return Result(true)
+    }
+
+    override fun checkCiDirExists(
+        userId: String,
+        projectId: String,
+        repositoryHashId: String
+    ): Result<Boolean> {
+        if (userId.isBlank()) {
+            throw ParamBlankException("Invalid userId")
+        }
+        if (projectId.isBlank()) {
+            throw ParamBlankException("Invalid projectId")
+        }
+        if (repositoryHashId.isBlank()) {
+            throw ParamBlankException("Invalid repositoryHashId")
+        }
+        // 禁用PAC，默认检查.ci文件夹是否存在
+        return Result(
+            repositoryService.checkCiDirExists(
+                userId = userId,
+                projectId = projectId,
+                repositoryHashId = repositoryHashId
+            )
+        )
     }
 }

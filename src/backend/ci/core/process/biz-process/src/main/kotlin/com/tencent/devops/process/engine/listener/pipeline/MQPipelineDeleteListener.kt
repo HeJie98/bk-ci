@@ -95,7 +95,8 @@ class MQPipelineDeleteListener @Autowired constructor(
 
         watcher.safeAround("deletePipelineRefRepository") {
             pipelineRepositoryService.deleteRepositoryRefInfo(
-                pipelineId = event.pipelineId
+                pipelineId = event.pipelineId,
+                projectId = event.projectId
             )
         }
 

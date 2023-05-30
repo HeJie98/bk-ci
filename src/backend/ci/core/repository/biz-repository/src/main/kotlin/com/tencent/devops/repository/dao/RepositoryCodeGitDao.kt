@@ -32,6 +32,7 @@ import com.tencent.devops.model.repository.tables.records.TRepositoryCodeGitReco
 import com.tencent.devops.repository.pojo.RepoUpdateSetting
 import com.tencent.devops.repository.pojo.UpdateRepositoryInfoRequest
 import com.tencent.devops.repository.pojo.enums.RepoAuthType
+import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.Result
 import org.springframework.stereotype.Repository
@@ -151,11 +152,17 @@ class RepositoryCodeGitDao {
      */
     fun getAllRepo(
         dslContext: DSLContext,
+        authType: RepoAuthType?,
         limit: Int,
         offset: Int
     ): Result<TRepositoryCodeGitRecord>? {
         with(TRepositoryCodeGit.T_REPOSITORY_CODE_GIT) {
+            val conditions = mutableListOf<Condition>()
+            if (authType != null) {
+                conditions.add(AUTH_TYPE.eq(authType.name))
+            }
             return dslContext.selectFrom(this)
+                .where(conditions)
                 .orderBy(CREATED_TIME.desc())
                 .limit(limit).offset(offset)
                 .fetch()

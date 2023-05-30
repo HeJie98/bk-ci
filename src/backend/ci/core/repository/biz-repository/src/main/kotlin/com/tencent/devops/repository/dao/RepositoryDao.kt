@@ -74,7 +74,8 @@ class RepositoryDao {
                     UPDATED_TIME,
                     IS_DELETED,
                     ENABLE_PAC,
-                    PAC_PROJECT_ID
+                    PAC_PROJECT_ID,
+                    UPDATED_USER
                 ).values(
                     projectId,
                     userId,
@@ -85,7 +86,8 @@ class RepositoryDao {
                     now,
                     false,
                     enablePac,
-                    pacProjectId
+                    pacProjectId,
+                    userId
                 )
                     .returning(REPOSITORY_ID)
                     .fetchOne()!!.repositoryId
@@ -99,13 +101,20 @@ class RepositoryDao {
         return repoId
     }
 
-    fun edit(dslContext: DSLContext, repositoryId: Long, aliasName: String, url: String) {
+    fun edit(
+        dslContext: DSLContext,
+        repositoryId: Long,
+        aliasName: String,
+        url: String,
+        updateUser: String
+    ) {
         val now = LocalDateTime.now()
         with(TRepository.T_REPOSITORY) {
             dslContext.update(this)
                 .set(ALIAS_NAME, aliasName)
                 .set(URL, url)
                 .set(UPDATED_TIME, now)
+                .set(UPDATED_USER, updateUser)
                 .where(REPOSITORY_ID.eq(repositoryId))
                 .execute()
         }
@@ -283,10 +292,11 @@ class RepositoryDao {
         }
     }
 
-    fun delete(dslContext: DSLContext, repositoryId: Long) {
+    fun delete(dslContext: DSLContext, repositoryId: Long, updateUser: String) {
         with(TRepository.T_REPOSITORY) {
             dslContext.update(this)
                 .set(IS_DELETED, true)
+                .set(UPDATED_USER, updateUser)
                 .where(REPOSITORY_ID.eq(repositoryId))
                 .execute()
         }
@@ -427,12 +437,15 @@ class RepositoryDao {
     fun updateRepoPacProject(
         dslContext: DSLContext,
         hashId: String,
+        updateUser: String,
         projectId: String?,
         enablePac: Boolean?
     ) {
         return with(TRepository.T_REPOSITORY) {
             val setStep = dslContext.update(this)
                 .set(PROJECT_ID, projectId)
+                .set(UPDATED_USER, updateUser)
+                .set(UPDATED_TIME, LocalDateTime.now())
             if (enablePac != null) {
                 setStep.set(ENABLE_PAC, enablePac)
             }
@@ -443,13 +456,29 @@ class RepositoryDao {
     fun rename(
         dslContext: DSLContext,
         hashId: String,
+        updateUser: String,
         projectId: String,
         newName: String
     ) {
         with(TRepository.T_REPOSITORY) {
             dslContext.update(this)
                 .set(ALIAS_NAME, newName)
+                .set(UPDATED_USER, updateUser)
+                .set(UPDATED_TIME, LocalDateTime.now())
                 .where(REPOSITORY_HASH_ID.eq(hashId).and(PROJECT_ID.eq(projectId)))
+                .execute()
+        }
+    }
+
+    fun updateRepoUrl(
+        dslContext: DSLContext,
+        id: Long,
+        newRepoUrl: String
+    ) {
+        with(TRepository.T_REPOSITORY) {
+            dslContext.update(this)
+                .set(URL, newRepoUrl)
+                .where(REPOSITORY_ID.eq(id))
                 .execute()
         }
     }

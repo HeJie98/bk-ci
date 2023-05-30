@@ -68,7 +68,6 @@ import com.tencent.devops.repository.pojo.enums.RepoAuthType
 import com.tencent.devops.repository.pojo.enums.TokenTypeEnum
 import com.tencent.devops.repository.pojo.enums.VisibilityLevelEnum
 import com.tencent.devops.repository.pojo.git.UpdateGitProjectInfo
-import com.tencent.devops.repository.resources.UserRepositoryResourceImpl
 import com.tencent.devops.repository.service.loader.CodeRepositoryServiceRegistrar
 import com.tencent.devops.repository.service.scm.IGitOauthService
 import com.tencent.devops.repository.service.scm.IGitService
@@ -436,7 +435,8 @@ class RepositoryService @Autowired constructor(
                         dslContext = context,
                         repositoryId = repositoryId,
                         aliasName = gitProjectInfo.namespaceName,
-                        url = gitProjectInfo.repositoryUrl
+                        url = gitProjectInfo.repositoryUrl,
+                        updateUser = userId
                     )
                     repositoryCodeGitDao.edit(
                         dslContext = context,
@@ -513,7 +513,13 @@ class RepositoryService @Autowired constructor(
                 params = arrayOf(repository.aliasName)
             )
         }
-        if (enabledPac(repoUrl = repository.url, projectId =  projectId)) {
+        if (
+            enabledPac(
+                repoUrl = repository.url,
+                repoEnablePac = repository.enablePac,
+                repositoryHashId = repository.repoHashId ?: ""
+            )
+        ) {
             // 代码库已开启PAC
             throw ErrorCodeException(
                 errorCode = RepositoryMessageCode.REPO_ENABLED_PAC
@@ -647,7 +653,10 @@ class RepositoryService @Autowired constructor(
                 updatedTime = repository.updatedTime.timestamp(),
                 canEdit = true,
                 canDelete = true,
-                authType = authType
+                authType = authType,
+                createUser = repository.userId,
+                createTime = repository.createdTime.timestamp(),
+                updatedUser = repository.updatedUser
             )
         }.toList()
     }
@@ -731,7 +740,10 @@ class RepositoryService @Autowired constructor(
                 svnType = authInfo?.svnType,
                 authIdentity = authInfo?.credentialId?.ifBlank { it.userId },
                 enablePac = it.enablePac,
-                pacProjectId = it.pacProjectId
+                pacProjectId = it.pacProjectId,
+                createTime = it.createdTime.timestamp(),
+                createUser = it.userId,
+                updatedUser = it.updatedUser
             )
         }
         return Pair(SQLPage(count, repositoryList), hasCreatePermission)
@@ -872,7 +884,7 @@ class RepositoryService @Autowired constructor(
         }
 
         deleteResource(projectId, repositoryId)
-        repositoryDao.delete(dslContext, repositoryId)
+        repositoryDao.delete(dslContext, repositoryId, userId)
     }
 
     fun validatePermission(user: String, projectId: String, authPermission: AuthPermission, message: String) {
@@ -1144,7 +1156,13 @@ class RepositoryService @Autowired constructor(
         )
         try {
             if (redisLock.tryLock()){
-                if (enabledPac(repoUrl = repository.url, projectId = projectId)) {
+                if (
+                    enabledPac(
+                        repoUrl = repository.url,
+                        repoEnablePac = true,
+                        repositoryHashId = repositoryHashId
+                    )
+                ) {
                     // 代码库已开启PAC
                     throw ErrorCodeException(
                         errorCode = RepositoryMessageCode.REPO_ENABLED_PAC
@@ -1154,10 +1172,14 @@ class RepositoryService @Autowired constructor(
                         dslContext = dslContext,
                         hashId = repositoryHashId,
                         projectId = projectId,
-                        enablePac = true
+                        enablePac = true,
+                        updateUser = userId
                     )
                 }
             }
+        } catch (e: ErrorCodeException) {
+            logger.warn("the repository has been enabled PAC|url[${repository.url}]")
+            throw e
         } catch (e: Exception) {
             logger.warn("Failure to enable repository",e)
             throw ErrorCodeException(
@@ -1166,6 +1188,80 @@ class RepositoryService @Autowired constructor(
         } finally {
             redisLock.unlock()
         }
+    }
+
+    fun disablePac(
+        userId: String,
+        projectId: String,
+        repositoryHashId: String
+    ) {
+        logger.info("disable repository pac model|userId[$userId]|repoId[$repositoryHashId]")
+        val repositoryId = HashUtil.decodeOtherIdToLong(repositoryHashId)
+        // 权限校验
+        validatePermission(
+            user = userId,
+            projectId = projectId,
+            repositoryId = repositoryId,
+            authPermission = AuthPermission.EDIT,
+            message = MessageUtil.getMessageByLocale(
+                messageCode = RepositoryMessageCode.USER_EDIT_PEM_ERROR,
+                params = arrayOf(userId, projectId, repositoryHashId),
+                language = I18nUtil.getLanguage(userId)
+            )
+        )
+        repositoryDao.updateRepoPacProject(
+            dslContext = dslContext,
+            hashId = repositoryHashId,
+            projectId = projectId,
+            enablePac = false,
+            updateUser = userId
+        )
+    }
+
+    fun checkCiDirExists(
+        userId: String,
+        projectId: String,
+        repositoryHashId: String
+    ): Boolean {
+        // 获取代码信息
+        val repository = getRepoByHashId(repositoryHashId)
+        val codeRepositoryInfo = compose(repository)
+        // 获取凭证信息
+        val (authType, projectName) = when (codeRepositoryInfo) {
+            is CodeGitRepository -> {
+                codeRepositoryInfo.authType to codeRepositoryInfo.projectName
+            }
+
+            else -> {
+                RepoAuthType.SSH to ""
+            }
+        }
+        var checkResult = false
+        if (authType != null && TokenTypeEnum.OAUTH.name == authType.name) {
+            val accessToken = gitOauthService.getAccessToken(userId)?.accessToken ?: ""
+            val projectInfo = gitService.getGitProjectInfo(
+                id = projectName,
+                token = accessToken,
+                tokenType = TokenTypeEnum.OAUTH
+            ).data
+            if (projectInfo != null) {
+                checkResult = try {
+                    // 结果为空代表文件夹不存在，检查成功
+                    gitService.getGitRepositoryTreeInfo(
+                        userId = userId,
+                        repoName = projectInfo.id.toString(),
+                        refName = projectInfo.defaultBranch,
+                        path = CI_DIR_PATH,
+                        token = accessToken,
+                        tokenType = TokenTypeEnum.OAUTH
+                    ).data.isNullOrEmpty()
+                } catch (e: Exception) {
+                    logger.info("fail to get git project ci dir info", e)
+                    false
+                }
+            }
+        }
+        return checkResult
     }
 
     fun updateRepoSetting(
@@ -1202,18 +1298,26 @@ class RepositoryService @Autowired constructor(
         repositoryHashId: String,
         limit: Int,
         offset: Int
-    ) = repositoryPipelineTaskDao.list(
-        dslContext = dslContext,
-        projectId = projectId,
-        repositoryHashId = repositoryHashId,
-        limit = limit,
-        offset = offset
-    ).map {
-        PipelineRelatedRepo(
-            pipelineId = it.pipelineId,
-            pipelineName = it.pipelineName
+    ) : SQLPage<PipelineRelatedRepo> {
+        val count = repositoryPipelineTaskDao.countByHashId(
+            dslContext = dslContext,
+            repositoryHashId = repositoryHashId,
+            projectId = projectId
         )
-    }.distinct()
+        val refList = repositoryPipelineTaskDao.list(
+            dslContext = dslContext,
+            projectId = projectId,
+            repositoryHashId = repositoryHashId,
+            limit = limit,
+            offset = offset
+        ).map {
+            PipelineRelatedRepo(
+                pipelineId = it.pipelineId,
+                pipelineName = it.pipelineName
+            )
+        }.distinct()
+        return SQLPage(count = count, records = refList)
+    }
 
     fun rename(userId: String, projectId: String, repositoryHashId: String, repoRename: RepoRename) {
         val repositoryId = HashUtil.decodeOtherIdToLong(repositoryHashId)
@@ -1232,6 +1336,7 @@ class RepositoryService @Autowired constructor(
         repositoryDao.rename(
             dslContext = dslContext,
             projectId = projectId,
+            updateUser = userId,
             hashId = repositoryHashId,
             newName = repoRename.name
         )
@@ -1247,6 +1352,7 @@ class RepositoryService @Autowired constructor(
 
     fun savePipelineTaskInfo(
         pipelineId: String,
+        projectId: String,
         taskInfos: List<PipelineRefRepositoryTaskInfo>
     ) {
         val redisLock = RedisLock(
@@ -1256,17 +1362,51 @@ class RepositoryService @Autowired constructor(
         )
         try {
             if (redisLock.tryLock()) {
-                deletePipelineTaskInfo(pipelineId)
-                taskInfos.forEach {
-                    repositoryPipelineTaskDao.save(
-                        dslContext = dslContext,
-                        projectId = it.projectId,
+                if (taskInfos.isEmpty()) {
+                    logger.info("task info list is empty,delete pipeline task info|pipelineId[$pipelineId]")
+                    deletePipelineTaskInfo(
+                        projectId = projectId,
                         pipelineId = pipelineId,
-                        pipelineName = it.pipelineName,
-                        repositoryHashId = it.repositoryHashId,
-                        taskId = it.taskId ?: "",
-                        atomCode = it.atomCode
+                        taskIds = null
                     )
+                    return
+                }
+                dslContext.transaction { configuration ->
+                    val transactionContext = DSL.using(configuration)
+                    // 需要保存的taskId
+                    val targetTaskIds = taskInfos.map { it.taskId }
+                    val projectId = taskInfos[0].projectId
+                    // 原有保存的taskId
+                    val sourceTaskIds = repositoryPipelineTaskDao.listRefs(
+                        dslContext = dslContext,
+                        projectId = projectId,
+                        pipelineId = pipelineId
+                    ).map { it.taskId }
+                    // 提取差异
+                    // 需删除的taskIds
+                    val deleteTaskIds = sourceTaskIds.toMutableList()
+                    deleteTaskIds.removeAll(targetTaskIds)
+                    // 清除无效数据
+                    if (deleteTaskIds.isNotEmpty()) {
+                        repositoryPipelineTaskDao.delete(
+                            dslContext = transactionContext,
+                            projectId = projectId,
+                            pipelineId = pipelineId,
+                            taskIds = deleteTaskIds.toSet()
+                        )
+                    }
+                    taskInfos.forEach {
+                        logger.info("save pipeline task info[$it]")
+                        repositoryPipelineTaskDao.save(
+                            dslContext = transactionContext,
+                            projectId = it.projectId,
+                            pipelineId = pipelineId,
+                            pipelineName = it.pipelineName,
+                            repositoryHashId = it.repositoryHashId,
+                            taskId = it.taskId ?: "",
+                            atomCode = it.atomCode
+                        )
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -1277,23 +1417,35 @@ class RepositoryService @Autowired constructor(
     }
 
     fun deletePipelineTaskInfo(
-        pipelineId: String
+        pipelineId: String,
+        projectId: String,
+        taskIds: Set<String>?
     ) {
         repositoryPipelineTaskDao.delete(
             dslContext = dslContext,
-            pipelineId = pipelineId
+            projectId = projectId,
+            pipelineId = pipelineId,
+            taskIds = taskIds
         )
     }
 
     /**
      * 是否已启用PAC
      */
-    fun enabledPac(repoUrl: String, projectId: String): Boolean {
+    fun enabledPac(
+        repoUrl: String,
+        repoEnablePac: Boolean?,
+        repositoryHashId: String
+    ): Boolean {
         val pacRepo = repositoryDao.getPacProjectIdByUrl(dslContext, repoUrl)
-        return pacRepo != null && pacRepo.projectId != projectId
+        return repoEnablePac == true &&
+            pacRepo != null &&
+            pacRepo.repositoryHashId != repositoryHashId
     }
 
     companion object {
         private val logger = LoggerFactory.getLogger(RepositoryService::class.java)
+        // ci文件夹路径
+        const val CI_DIR_PATH = ".ci"
     }
 }

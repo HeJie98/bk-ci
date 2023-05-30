@@ -221,21 +221,27 @@ interface ServiceRepositoryResource {
 
     @ApiOperation("保存流水线Task中代码库信息")
     @PUT
-    @Path("/{pipelineId}/savePipelineTaskInfo")
+    @Path("/{projectId}/{pipelineId}/savePipelineTaskInfo")
     fun savePipelineTaskInfo(
         @ApiParam("流水线ID", required = true)
         @PathParam("pipelineId")
         pipelineId:String,
+        @ApiParam("蓝盾项目ID", required = true)
+        @PathParam("projectId")
+        projectId:String,
         @ApiParam(value = "代码库关联信息", required = true)
         taskInfos: List<PipelineRefRepositoryTaskInfo>
     ): Result<Boolean>
 
     @ApiOperation("删除流水线Task中代码库信息")
     @GET
-    @Path("/{pipelineId}//deletePipelineTaskInfo")
+    @Path("/{projectId}/{pipelineId}/deletePipelineTaskInfo")
     fun deletePipelineTaskInfo(
         @ApiParam("流水线ID", required = true)
         @PathParam("pipelineId")
-        pipelineId:String
+        pipelineId: String,
+        @ApiParam("蓝盾项目ID", required = true)
+        @PathParam("projectId")
+        projectId: String,
     ): Result<Boolean>
 }

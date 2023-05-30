@@ -206,15 +206,18 @@ class ServiceRepositoryResourceImpl @Autowired constructor(
 
     override fun savePipelineTaskInfo(
         pipelineId: String,
+        projectId: String,
         taskInfos: List<PipelineRefRepositoryTaskInfo>
     ): Result<Boolean> {
-        repositoryService.savePipelineTaskInfo(pipelineId, taskInfos)
+        repositoryService.savePipelineTaskInfo(pipelineId, projectId, taskInfos)
         return Result(true)
     }
 
-    override fun deletePipelineTaskInfo(pipelineId: String): Result<Boolean> {
+    override fun deletePipelineTaskInfo(pipelineId: String,projectId: String): Result<Boolean> {
         repositoryService.deletePipelineTaskInfo(
-            pipelineId = pipelineId
+            pipelineId = pipelineId,
+            projectId = projectId,
+            taskIds = null
         )
         return Result(true)
     }

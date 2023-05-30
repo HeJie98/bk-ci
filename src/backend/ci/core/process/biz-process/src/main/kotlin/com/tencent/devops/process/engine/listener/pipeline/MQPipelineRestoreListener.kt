@@ -35,6 +35,7 @@ import com.tencent.devops.process.engine.control.CallBackControl
 import com.tencent.devops.process.engine.pojo.event.PipelineRestoreEvent
 import com.tencent.devops.process.engine.service.AgentPipelineRefService
 import com.tencent.devops.process.engine.service.PipelineAtomStatisticsService
+import com.tencent.devops.process.engine.service.PipelineRefRepositoryService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 
@@ -48,6 +49,7 @@ class MQPipelineRestoreListener @Autowired constructor(
     private val agentPipelineRefService: AgentPipelineRefService,
     private val pipelineAtomStatisticsService: PipelineAtomStatisticsService,
     private val callBackControl: CallBackControl,
+    private val pipelineRepositoryService: PipelineRefRepositoryService,
     pipelineEventDispatcher: PipelineEventDispatcher
 ) : BaseListener<PipelineRestoreEvent>(pipelineEventDispatcher) {
 
@@ -67,6 +69,14 @@ class MQPipelineRestoreListener @Autowired constructor(
                 deleteFlag = false,
                 restoreFlag = true
             )
+            watcher.safeAround("savePipelineRefRepository") {
+                pipelineRepositoryService.saveRepositoryRefInfo(
+                    projectId = event.projectId,
+                    pipelineId = event.pipelineId,
+                    version = event.version,
+                    userId = event.userId
+                )
+            }
             watcher.stop()
             watcher.start("callback")
             callBackControl.pipelineRestoreEvent(projectId = event.projectId, pipelineId = event.pipelineId)

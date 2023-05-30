@@ -146,7 +146,8 @@ class CodeGitRepositoryService @Autowired constructor(
                 dslContext = transactionContext,
                 repositoryId = repositoryId,
                 aliasName = repository.aliasName,
-                url = repository.getFormatURL()
+                url = repository.getFormatURL(),
+                updateUser = userId
             )
             repositoryCodeGitDao.edit(
                 dslContext = transactionContext,
@@ -171,7 +172,10 @@ class CodeGitRepositoryService @Autowired constructor(
             authType = RepoAuthType.parse(record.authType),
             projectId = repository.projectId,
             repoHashId = HashUtil.encodeOtherLongId(repository.repositoryId),
-            gitProjectId = record.gitProjectId
+            gitProjectId = record.gitProjectId,
+            enablePac = repository.enablePac,
+            pacProjectId = repository.pacProjectId,
+            settings = RepoUpdateSetting(enableMrBlock = record.enableMrBlock)
         )
     }
 

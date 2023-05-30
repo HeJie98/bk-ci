@@ -41,6 +41,7 @@ import com.tencent.devops.common.pipeline.pojo.element.market.MarketBuildAtomEle
 import com.tencent.devops.common.pipeline.pojo.element.trigger.WebHookTriggerElement
 import com.tencent.devops.common.pipeline.utils.RepositoryConfigUtils
 import com.tencent.devops.process.constant.ProcessMessageCode
+import com.tencent.devops.process.engine.dao.PipelineInfoDao
 import com.tencent.devops.process.engine.dao.PipelineResDao
 import com.tencent.devops.repository.api.ServiceRepositoryResource
 import org.jooq.DSLContext
@@ -57,6 +58,7 @@ import org.springframework.stereotype.Service
 class PipelineRefRepositoryService @Autowired constructor(
     private val dslContext: DSLContext,
     private val pipelineResDao: PipelineResDao,
+    private val pipelineInfoDao: PipelineInfoDao,
     private val objectMapper: ObjectMapper,
     private val client: Client
 ) {
@@ -105,6 +107,7 @@ class PipelineRefRepositoryService @Autowired constructor(
             logger.info("try save pipeline ref repository info|projectId[$projectId]|pipelineId[$pipelineId]")
             client.get(ServiceRepositoryResource::class).savePipelineTaskInfo(
                 pipelineId = pipelineId,
+                projectId = projectId,
                 taskInfos = taskInfos
             )
         } catch (e: Exception) {
@@ -113,12 +116,14 @@ class PipelineRefRepositoryService @Autowired constructor(
     }
 
     fun deleteRepositoryRefInfo(
-        pipelineId: String
+        pipelineId: String,
+        projectId: String
     ){
         try {
             logger.info("try delete pipeline ref repository info|pipelineId[$pipelineId]")
             client.get(ServiceRepositoryResource::class).deletePipelineTaskInfo(
-                pipelineId = pipelineId
+                pipelineId = pipelineId,
+                projectId = projectId
             )
         } catch (e: Exception) {
             logger.warn("Failure to delete pipeline ref repository info|pipelineId[$pipelineId]")
@@ -160,33 +165,35 @@ class PipelineRefRepositoryService @Autowired constructor(
         pipelineName: String?
     ): MutableList<PipelineRefRepositoryTaskInfo> {
         val taskInfos = mutableListOf<PipelineRefRepositoryTaskInfo>()
-        if (model.stages.size > 1) {
-            val atomCodes = listOf("checkout", "gitCodeRepo")
-            for (i in 1 until model.stages.size) {
-                val stage = model.stages[i]
-                stage.containers.forEach { container ->
-                    run out@{
-                        container.elements.forEach {
-                            if (atomCodes.contains(it.getAtomCode())) {
-                                val marketBuildAtomElement = it as MarketBuildAtomElement
-                                // 输入参数
-                                val inputParam = marketBuildAtomElement.data["input"]
-                                if (inputParam !is Map<*, *>) return@out
-                                when (RepositoryType.parseType(inputParam["repositoryType"] as String?)) {
-                                    RepositoryType.ID -> {
-                                        taskInfos.add(
-                                            PipelineRefRepositoryTaskInfo(
-                                                projectId = projectId,
-                                                pipelineId = pipelineId,
-                                                pipelineName = pipelineName ?: "",
-                                                repositoryHashId = (inputParam["repositoryHashId"] as String),
-                                                taskId = it.id,
-                                                atomCode = it.getAtomCode() ?: ""
-                                            )
+        if (model.stages.size <= 1) {
+            logger.info("No other plugins exist|projectId[$projectId]|pipeline[$pipelineId]")
+            return taskInfos
+        }
+        val atomCodes = listOf("checkout", "gitCodeRepo", "PerforceSync")
+        for (i in 1 until model.stages.size) {
+            val stage = model.stages[i]
+            stage.containers.forEach { container ->
+                run out@{
+                    container.elements.forEach {
+                        if (atomCodes.contains(it.getAtomCode())) {
+                            val marketBuildAtomElement = it as MarketBuildAtomElement
+                            // 输入参数
+                            val inputParam = marketBuildAtomElement.data["input"]
+                            if (inputParam !is Map<*, *>) return@out
+                            when (RepositoryType.parseType(inputParam["repositoryType"] as String?)) {
+                                RepositoryType.ID -> {
+                                    taskInfos.add(
+                                        PipelineRefRepositoryTaskInfo(
+                                            projectId = projectId,
+                                            pipelineId = pipelineId,
+                                            pipelineName = pipelineName ?: "",
+                                            repositoryHashId = (inputParam["repositoryHashId"] as String),
+                                            taskId = it.id,
+                                            atomCode = it.getAtomCode() ?: ""
                                         )
-                                    }
-                                    else -> null
+                                    )
                                 }
+                                else -> {}
                             }
                         }
                     }
@@ -260,5 +267,32 @@ class PipelineRefRepositoryService @Autowired constructor(
                 variable = variable
             )
         }
+    }
+
+    /**
+     * 批量保存流水线与代码库依赖关系
+     */
+    fun batchSavePipelineRefRepositoryInfo(projectId: String?) {
+        val limit = 100
+        var offset = 0
+        do {
+            val pipelineList = pipelineInfoDao.listAllPipeline(
+                dslContext = dslContext,
+                projectId = projectId,
+                limit = limit,
+                offset = offset
+            )
+            pipelineList.forEach {
+                saveRepositoryRefInfo(
+                    projectId = it.projectId,
+                    pipelineId = it.pipelineId,
+                    version = it.version,
+                    userId = ""
+                )
+            }
+            offset += limit
+            // 一秒休眠时间
+            Thread.sleep(1 * 1000)
+        } while (pipelineList.size == limit)
     }
 }

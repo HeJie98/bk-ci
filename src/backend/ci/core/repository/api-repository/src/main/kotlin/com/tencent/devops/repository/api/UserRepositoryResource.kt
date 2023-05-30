@@ -295,7 +295,7 @@ interface UserRepositoryResource {
         @ApiParam("每页多少条", required = false, defaultValue = "20")
         @QueryParam("pageSize")
         pageSize: Int?
-    ): Result<List<PipelineRelatedRepo>>
+    ): Result<Page<PipelineRelatedRepo>>
 
     @ApiOperation("根据代码库url获取关联的项目ID")
     @GET
@@ -356,5 +356,35 @@ interface UserRepositoryResource {
         repositoryHashId: String,
         @ApiParam("代码库重命名")
         repoRename: RepoRename
+    ): Result<Boolean>
+
+    @ApiOperation("关闭pac")
+    @PUT
+    @Path("/{projectId}/{repositoryHashId}/disablePac")
+    fun disablePac(
+        @ApiParam(value = "用户ID", required = true, defaultValue = AUTH_HEADER_USER_ID_DEFAULT_VALUE)
+        @HeaderParam(AUTH_HEADER_USER_ID)
+        userId: String,
+        @ApiParam("项目ID", required = true)
+        @PathParam("projectId")
+        projectId: String,
+        @ApiParam("代码库哈希ID", required = true)
+        @PathParam("repositoryHashId")
+        repositoryHashId: String
+    ): Result<Boolean>
+
+    @ApiOperation("关闭PAC-检查是否存在ci文件夹")
+    @PUT
+    @Path("/{projectId}/{repositoryHashId}/disablePac/check")
+    fun checkCiDirExists(
+        @ApiParam(value = "用户ID", required = true, defaultValue = AUTH_HEADER_USER_ID_DEFAULT_VALUE)
+        @HeaderParam(AUTH_HEADER_USER_ID)
+        userId: String,
+        @ApiParam("项目ID", required = true)
+        @PathParam("projectId")
+        projectId: String,
+        @ApiParam("代码库哈希ID", required = true)
+        @PathParam("repositoryHashId")
+        repositoryHashId: String
     ): Result<Boolean>
 }

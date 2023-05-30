@@ -28,7 +28,6 @@
 package com.tencent.devops.repository.dao
 
 import com.tencent.devops.model.repository.tables.TRepositoryPipelineTask
-import com.tencent.devops.model.repository.tables.records.TRepositoryCodeGitRecord
 import com.tencent.devops.model.repository.tables.records.TRepositoryPipelineTaskRecord
 import org.jooq.DSLContext
 import org.jooq.Result
@@ -37,10 +36,24 @@ import java.time.LocalDateTime
 
 @Repository
 class RepositoryPipelineTaskDao {
-    fun delete(dslContext: DSLContext, pipelineId: String): Int {
+    fun delete(
+        dslContext: DSLContext,
+        projectId: String,
+        pipelineId: String,
+        taskIds: Set<String>?
+    ): Int {
         with(TRepositoryPipelineTask.T_REPOSITORY_PIPELINE_TASK) {
+            val conditions = mutableListOf(
+                PIPELINE_ID.eq(pipelineId),
+                PROJECT_ID.eq(projectId)
+            )
+            if (!taskIds.isNullOrEmpty()) {
+                conditions.add(
+                    TASK_ID.`in`(taskIds)
+                )
+            }
             return dslContext.deleteFrom(this)
-                .where(PIPELINE_ID.eq(pipelineId))
+                .where(conditions)
                 .execute()
         }
     }
@@ -76,7 +89,12 @@ class RepositoryPipelineTaskDao {
                     atomCode,
                     now,
                     now
-                ).execute()
+                ).onDuplicateKeyUpdate()
+                .set(UPDATE_TIME, now)
+                .set(ATOM_CODE, atomCode)
+                .set(PIPELINE_NAME, pipelineName)
+                .set(REPOSITORY_HASH_ID, repositoryHashId)
+                .execute()
         }
     }
 
@@ -96,6 +114,40 @@ class RepositoryPipelineTaskDao {
                 .where(conditions).orderBy(PIPELINE_ID)
                 .limit(limit).offset(offset)
                 .fetch()
+        }
+    }
+
+    fun listRefs(
+        dslContext: DSLContext,
+        projectId: String,
+        pipelineId: String
+    ): Result<TRepositoryPipelineTaskRecord> {
+        with(TRepositoryPipelineTask.T_REPOSITORY_PIPELINE_TASK) {
+            val conditions = listOf(
+                PROJECT_ID.eq(projectId),
+                PIPELINE_ID.eq(pipelineId)
+            )
+            return dslContext.selectFrom(this)
+                .where(conditions)
+                .fetch()
+        }
+    }
+
+    fun countByHashId(
+        dslContext: DSLContext,
+        repositoryHashId: String,
+        projectId: String
+    ): Long {
+        with(TRepositoryPipelineTask.T_REPOSITORY_PIPELINE_TASK) {
+            return dslContext.selectCount()
+                .from(this)
+                .where(
+                    listOf(
+                        PROJECT_ID.eq(projectId),
+                        REPOSITORY_HASH_ID.eq(repositoryHashId)
+                    )
+                )
+                .fetchOne(0, Long::class.java)!!
         }
     }
 }

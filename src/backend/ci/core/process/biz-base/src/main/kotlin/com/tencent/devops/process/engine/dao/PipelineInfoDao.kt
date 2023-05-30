@@ -735,6 +735,28 @@ class PipelineInfoDao {
         }
     }
 
+    fun listAllPipeline(
+        dslContext: DSLContext,
+        projectId: String?,
+        limit: Int,
+        offset: Int
+    ): Result<TPipelineInfoRecord> {
+        return with(T_PIPELINE_INFO) {
+            val conditions = mutableListOf(
+                DELETE.eq(false)
+            )
+            if (!projectId.isNullOrBlank()) {
+                conditions.add(PROJECT_ID.eq(projectId))
+            }
+            dslContext.selectFrom(this)
+                .where(conditions)
+                .orderBy(PROJECT_ID, CREATE_TIME)
+                .limit(limit)
+                .offset(offset)
+                .fetch()
+        }
+    }
+
     companion object {
         private val logger = LoggerFactory.getLogger(PipelineInfoDao::class.java)
     }
