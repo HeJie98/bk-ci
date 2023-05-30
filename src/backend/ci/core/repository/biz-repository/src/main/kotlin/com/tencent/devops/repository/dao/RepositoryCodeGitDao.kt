@@ -27,7 +27,6 @@
 
 package com.tencent.devops.repository.dao
 
-import com.tencent.bkrepo.common.artifact.constant.PROJECT_ID
 import com.tencent.devops.model.repository.tables.TRepositoryCodeGit
 import com.tencent.devops.model.repository.tables.records.TRepositoryCodeGitRecord
 import com.tencent.devops.repository.pojo.RepoUpdateSetting
@@ -190,7 +189,7 @@ class RepositoryCodeGitDao {
             dslContext.update(this)
                 .set(ENABLE_MR_BLOCK, repoUpdateSetting.enableMrBlock)
                 .set(UPDATED_TIME, LocalDateTime.now())
-                .where(REPOSITORY_ID.eq(id).and(PROJECT_ID, projectId))
+                .where(REPOSITORY_ID.eq(id))
                 .execute()
         }
     }
