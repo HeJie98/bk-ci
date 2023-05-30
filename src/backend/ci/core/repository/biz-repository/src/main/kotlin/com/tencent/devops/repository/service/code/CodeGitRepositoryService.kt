@@ -81,7 +81,9 @@ class CodeGitRepositoryService @Autowired constructor(
                 userId = userId,
                 aliasName = repository.aliasName,
                 url = repository.getFormatURL(),
-                type = ScmType.CODE_GIT
+                type = ScmType.CODE_GIT,
+                pacProjectId = repository.pacProjectId,
+                enablePac = repository.enablePac
             )
             // Git项目ID
             val gitProjectId =

@@ -54,7 +54,9 @@ class RepositoryDao {
         userId: String,
         aliasName: String,
         url: String,
-        type: ScmType
+        type: ScmType,
+        enablePac: Boolean? = false,
+        pacProjectId: String? = ""
     ): Long {
         val now = LocalDateTime.now()
         var repoId = 0L
@@ -70,7 +72,9 @@ class RepositoryDao {
                     TYPE,
                     CREATED_TIME,
                     UPDATED_TIME,
-                    IS_DELETED
+                    IS_DELETED,
+                    ENABLE_PAC,
+                    PAC_PROJECT_ID
                 ).values(
                     projectId,
                     userId,
@@ -79,7 +83,9 @@ class RepositoryDao {
                     type.name,
                     now,
                     now,
-                    false
+                    false,
+                    enablePac,
+                    pacProjectId
                 )
                     .returning(REPOSITORY_ID)
                     .fetchOne()!!.repositoryId

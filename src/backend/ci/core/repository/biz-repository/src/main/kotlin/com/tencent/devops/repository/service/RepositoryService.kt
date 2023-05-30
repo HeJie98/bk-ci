@@ -513,6 +513,12 @@ class RepositoryService @Autowired constructor(
                 params = arrayOf(repository.aliasName)
             )
         }
+        if (enabledPac(repoUrl = repository.url, projectId =  projectId)) {
+            // 代码库已开启PAC
+            throw ErrorCodeException(
+                errorCode = RepositoryMessageCode.REPO_ENABLED_PAC
+            )
+        }
         val repositoryService = CodeRepositoryServiceRegistrar.getService(repository = repository)
         val repositoryId =
             repositoryService.create(projectId = projectId, userId = userId, repository = repository)
@@ -1138,8 +1144,7 @@ class RepositoryService @Autowired constructor(
         )
         try {
             if (redisLock.tryLock()){
-                val pacRepo = repositoryDao.getPacProjectIdByUrl(dslContext, repository.url)
-                if (pacRepo != null && pacRepo.repositoryHashId != repository.repositoryHashId) {
+                if (enabledPac(repoUrl = repository.url, projectId = projectId)) {
                     // 代码库已开启PAC
                     throw ErrorCodeException(
                         errorCode = RepositoryMessageCode.REPO_ENABLED_PAC
@@ -1278,6 +1283,14 @@ class RepositoryService @Autowired constructor(
             dslContext = dslContext,
             pipelineId = pipelineId
         )
+    }
+
+    /**
+     * 是否已启用PAC
+     */
+    fun enabledPac(repoUrl: String, projectId: String): Boolean {
+        val pacRepo = repositoryDao.getPacProjectIdByUrl(dslContext, repoUrl)
+        return pacRepo != null && pacRepo.projectId != projectId
     }
 
     companion object {
