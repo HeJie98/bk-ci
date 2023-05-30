@@ -1208,7 +1208,7 @@ class RepositoryService @Autowired constructor(
             pipelineId = it.pipelineId,
             pipelineName = it.pipelineName
         )
-    }
+    }.distinct()
 
     fun rename(userId: String, projectId: String, repositoryHashId: String, repoRename: RepoRename) {
         val repositoryId = HashUtil.decodeOtherIdToLong(repositoryHashId)

@@ -37,6 +37,7 @@ import com.tencent.devops.common.client.Client
 import com.tencent.devops.common.pipeline.Model
 import com.tencent.devops.common.pipeline.container.TriggerContainer
 import com.tencent.devops.common.pipeline.pojo.element.Element
+import com.tencent.devops.common.pipeline.pojo.element.market.MarketBuildAtomElement
 import com.tencent.devops.common.pipeline.pojo.element.trigger.WebHookTriggerElement
 import com.tencent.devops.common.pipeline.utils.RepositoryConfigUtils
 import com.tencent.devops.process.constant.ProcessMessageCode
@@ -164,23 +165,27 @@ class PipelineRefRepositoryService @Autowired constructor(
             for (i in 1 until model.stages.size) {
                 val stage = model.stages[i]
                 stage.containers.forEach { container ->
-                    run {
+                    run out@{
                         container.elements.forEach {
-                            if (atomCodes.contains(it.atomName)) {
-                                val genTaskParams = it.genTaskParams()
-                                val repositoryType = genTaskParams["repositoryType"]
-                                val repositoryHashId = genTaskParams["repositoryHashId"] as String
-                                if (repositoryType == "ID") {
-                                    taskInfos.add(
-                                        PipelineRefRepositoryTaskInfo(
-                                            projectId = projectId,
-                                            pipelineId = pipelineId,
-                                            pipelineName = pipelineName?:"",
-                                            repositoryHashId = repositoryHashId,
-                                            taskId = it.id,
-                                            atomCode = it.atomName?:""
+                            if (atomCodes.contains(it.getAtomCode())) {
+                                val marketBuildAtomElement = it as MarketBuildAtomElement
+                                // 输入参数
+                                val inputParam = marketBuildAtomElement.data["input"]
+                                if (inputParam !is Map<*, *>) return@out
+                                when (RepositoryType.parseType(inputParam["repositoryType"] as String?)) {
+                                    RepositoryType.ID -> {
+                                        taskInfos.add(
+                                            PipelineRefRepositoryTaskInfo(
+                                                projectId = projectId,
+                                                pipelineId = pipelineId,
+                                                pipelineName = pipelineName ?: "",
+                                                repositoryHashId = (inputParam["repositoryHashId"] as String),
+                                                taskId = it.id,
+                                                atomCode = it.getAtomCode() ?: ""
+                                            )
                                         )
-                                    )
+                                    }
+                                    else -> null
                                 }
                             }
                         }

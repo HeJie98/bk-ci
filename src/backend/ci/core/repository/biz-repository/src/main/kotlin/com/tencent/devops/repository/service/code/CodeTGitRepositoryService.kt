@@ -284,9 +284,7 @@ class CodeTGitRepositoryService @Autowired constructor(
         projectId: String,
         repositoryHashId: String,
         repoUpdateSetting: RepoUpdateSetting
-    ) {
-
-    }
+    ) = Unit
 
     companion object {
         private val logger = LoggerFactory.getLogger(CodeTGitRepositoryService::class.java)
