@@ -451,7 +451,52 @@ class OPRepositoryService @Autowired constructor(
         }
         logger.info("OPRepositoryService:finish updateCodeGitRepoUrl-----------")
         logger.info("updateCodeGitRepoUrl time cost: ${System.currentTimeMillis() - startTime}")
+    }
 
+    fun addUpdateUser() {
+        val startTime = System.currentTimeMillis()
+        logger.info("OPRepositoryService:begin addUpdateUser-----------")
+        val threadPoolExecutor = ThreadPoolExecutor(
+            1,
+            1,
+            0,
+            TimeUnit.SECONDS,
+            LinkedBlockingQueue(1),
+            Executors.defaultThreadFactory(),
+            ThreadPoolExecutor.AbortPolicy()
+        )
+        threadPoolExecutor.submit {
+            logger.info("OPRepositoryService:begin addUpdateUser threadPoolExecutor-----------")
+            try {
+                var offset = 0
+                val limit = 1000
+                logger.info("OPRepositoryService:begin addUpdateUser")
+                do {
+                    val repoRecords = repositoryDao.getAllRepo(
+                        dslContext = dslContext,
+                        limit = limit,
+                        offset = offset
+                    )
+                    val repoSize = repoRecords?.size ?: 0
+                    val ids = repoRecords?.map { it.value1() } ?: listOf()
+                    if (ids.isNotEmpty()) {
+                        repositoryDao.addUpdateUser(
+                            dslContext = dslContext,
+                            repositoryIds = ids.toSet()
+                        )
+                    }
+                    offset += limit
+                    // 避免限流，增加一秒休眠时间
+                    Thread.sleep(1 * 1000)
+                } while (repoSize == 1000)
+            } catch (e: Exception) {
+                logger.warn("OpRepositoryService：addUpdateUser failed | $e ")
+            } finally {
+                threadPoolExecutor.shutdown()
+            }
+        }
+        logger.info("OPRepositoryService:finish addUpdateUser-----------")
+        logger.info("addUpdateUser time cost: ${System.currentTimeMillis() - startTime}")
     }
 
     companion object {

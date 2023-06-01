@@ -80,4 +80,9 @@ interface OPRepositoryResource {
         @QueryParam("projectId")
         projectId: String?
     )
+
+    @ApiOperation("填充最后修改用户信息")
+    @POST
+    @Path("/addUpdateUser")
+    fun addUpdateUser()
 }

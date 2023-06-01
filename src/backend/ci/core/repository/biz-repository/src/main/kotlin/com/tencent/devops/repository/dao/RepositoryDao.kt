@@ -482,4 +482,16 @@ class RepositoryDao {
                 .execute()
         }
     }
+
+    fun addUpdateUser(
+        dslContext: DSLContext,
+        repositoryIds: Set<Long>
+    ) {
+        with(TRepository.T_REPOSITORY) {
+            dslContext.update(this)
+                .set(UPDATED_USER, USER_ID)
+                .where(REPOSITORY_ID.`in`(repositoryIds))
+                .execute()
+        }
+    }
 }
