@@ -79,10 +79,10 @@ interface OPRepositoryResource {
         @ApiParam(value = "蓝盾项目ID", required = false)
         @QueryParam("projectId")
         projectId: String?
-    )
+    ): Result<Boolean>
 
     @ApiOperation("填充最后修改用户信息")
     @POST
     @Path("/addUpdateUser")
-    fun addUpdateUser()
+    fun addUpdateUser(): Result<Boolean>
 }

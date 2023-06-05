@@ -81,4 +81,11 @@ data class CodeGitRepository(
                 GitUtils.isLegalSshUrl(url)
         }
     }
+
+    override fun getFormatURL(): String {
+        // OAUTH必须以https开头
+        return if (authType == RepoAuthType.OAUTH) {
+            url.replaceFirst("http://", "https://")
+        } else url
+    }
 }

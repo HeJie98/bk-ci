@@ -63,11 +63,13 @@ class OPRepositoryResourceImpl @Autowired constructor(
         opRepositoryService.updateGitProjectId()
     }
 
-    override fun updateCodeGitRepoUrl(projectId: String?) {
+    override fun updateCodeGitRepoUrl(projectId: String?): Result<Boolean> {
         opRepositoryService.updateCodeGitRepoUrl(projectId)
+        return Result(true)
     }
 
-    override fun addUpdateUser() {
+    override fun addUpdateUser(): Result<Boolean> {
         opRepositoryService.addUpdateUser()
+        return Result(true)
     }
 }

@@ -515,14 +515,17 @@ class RepositoryService @Autowired constructor(
         }
         if (
             enabledPac(
-                repoUrl = repository.url,
+                repoUrl = repository.getFormatURL(),
                 repoEnablePac = repository.enablePac,
                 repositoryHashId = repository.repoHashId ?: ""
             )
         ) {
             // 代码库已开启PAC
-            throw ErrorCodeException(
-                errorCode = RepositoryMessageCode.REPO_ENABLED_PAC
+            throw OperationException(
+                MessageUtil.getMessageByLocale(
+                    RepositoryMessageCode.REPO_ENABLED_PAC,
+                    I18nUtil.getLanguage(userId)
+                )
             )
         }
         val repositoryService = CodeRepositoryServiceRegistrar.getService(repository = repository)
@@ -625,6 +628,21 @@ class RepositoryService @Autowired constructor(
             )
         }
         val codeRepositoryService = CodeRepositoryServiceRegistrar.getService(repository)
+        if (
+            enabledPac(
+                repoUrl = repository.getFormatURL(),
+                repoEnablePac = repository.enablePac,
+                repositoryHashId = repositoryHashId
+            )
+        ) {
+            // 代码库已开启PAC
+            throw OperationException(
+                MessageUtil.getMessageByLocale(
+                    RepositoryMessageCode.REPO_ENABLED_PAC,
+                    I18nUtil.getLanguage(userId)
+                )
+            )
+        }
         codeRepositoryService.edit(
             userId = userId,
             projectId = projectId,
@@ -1164,8 +1182,11 @@ class RepositoryService @Autowired constructor(
                     )
                 ) {
                     // 代码库已开启PAC
-                    throw ErrorCodeException(
-                        errorCode = RepositoryMessageCode.REPO_ENABLED_PAC
+                    throw OperationException(
+                        MessageUtil.getMessageByLocale(
+                            RepositoryMessageCode.REPO_ENABLED_PAC,
+                            I18nUtil.getLanguage(userId)
+                        )
                     )
                 } else {
                     repositoryDao.updateRepoPacProject(
@@ -1177,7 +1198,7 @@ class RepositoryService @Autowired constructor(
                     )
                 }
             }
-        } catch (e: ErrorCodeException) {
+        } catch (e: OperationException) {
             logger.warn("the repository has been enabled PAC|url[${repository.url}]")
             throw e
         } catch (e: Exception) {
