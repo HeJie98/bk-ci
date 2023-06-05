@@ -82,7 +82,7 @@ class CodeGitRepositoryService @Autowired constructor(
                 aliasName = repository.aliasName,
                 url = repository.getFormatURL(),
                 type = ScmType.CODE_GIT,
-                pacProjectId = repository.pacProjectId,
+                pacProjectId = projectId,
                 enablePac = repository.enablePac
             )
             // Git项目ID

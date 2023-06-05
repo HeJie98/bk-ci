@@ -66,7 +66,7 @@ data class CodeGitRepository(
     override fun getStartPrefix(): String {
         return when (authType) {
             RepoAuthType.SSH -> "git@"
-            RepoAuthType.OAUTH -> "http://"
+            RepoAuthType.OAUTH -> "https://"
             RepoAuthType.HTTP -> "http://"
             RepoAuthType.HTTPS -> "https://"
             else -> "git@"
