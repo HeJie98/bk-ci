@@ -27,6 +27,7 @@
 
 package com.tencent.devops.repository.pojo
 
+import com.tencent.devops.repository.pojo.enums.RepoAuthType
 import io.swagger.annotations.ApiModel
 import io.swagger.annotations.ApiModelProperty
 
@@ -49,7 +50,9 @@ data class CodeP4Repository(
     @ApiModelProperty("仓库是否开启pac", required = false)
     override val enablePac: Boolean? = false,
     @ApiModelProperty("pac项目ID", required = false)
-    override val pacProjectId: String? = null
+    override val pacProjectId: String? = null,
+    @ApiModelProperty("仓库认证类型", required = false)
+    val authType: String? = RepoAuthType.HTTP.name
 ) : Repository {
 
     companion object {

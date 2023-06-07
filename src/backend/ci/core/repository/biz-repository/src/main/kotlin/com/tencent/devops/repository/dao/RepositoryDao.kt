@@ -106,7 +106,9 @@ class RepositoryDao {
         repositoryId: Long,
         aliasName: String,
         url: String,
-        updateUser: String
+        updateUser: String,
+        enablePac: Boolean? = false,
+        pacProjectId: String? = ""
     ) {
         val now = LocalDateTime.now()
         with(TRepository.T_REPOSITORY) {
@@ -115,6 +117,8 @@ class RepositoryDao {
                 .set(URL, url)
                 .set(UPDATED_TIME, now)
                 .set(UPDATED_USER, updateUser)
+                .set(ENABLE_PAC, enablePac)
+                .set(PAC_PROJECT_ID, pacProjectId)
                 .where(REPOSITORY_ID.eq(repositoryId))
                 .execute()
         }

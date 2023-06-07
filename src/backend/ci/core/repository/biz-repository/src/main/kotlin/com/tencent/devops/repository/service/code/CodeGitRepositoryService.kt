@@ -147,7 +147,9 @@ class CodeGitRepositoryService @Autowired constructor(
                 repositoryId = repositoryId,
                 aliasName = repository.aliasName,
                 url = repository.getFormatURL(),
-                updateUser = userId
+                updateUser = userId,
+                pacProjectId = projectId,
+                enablePac = repository.enablePac
             )
             repositoryCodeGitDao.edit(
                 dslContext = transactionContext,

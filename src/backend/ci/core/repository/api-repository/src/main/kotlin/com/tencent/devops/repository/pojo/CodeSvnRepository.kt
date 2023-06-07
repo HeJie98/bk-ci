@@ -54,7 +54,9 @@ data class CodeSvnRepository(
     @ApiModelProperty("仓库是否开启pac", required = false)
     override val enablePac: Boolean? = false,
     @ApiModelProperty("pac项目ID", required = false)
-    override val pacProjectId: String? = null
+    override val pacProjectId: String? = null,
+    @ApiModelProperty("仓库认证类型", required = false)
+    val authType: String? = svnType?.uppercase()
 ) : Repository {
 
     companion object {
