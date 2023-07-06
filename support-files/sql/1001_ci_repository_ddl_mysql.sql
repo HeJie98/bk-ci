@@ -194,4 +194,19 @@ CREATE TABLE IF NOT EXISTS `T_REPOSITORY_PIPELINE_TASK`  (
   `UPDATE_TIME` TIMESTAMP NULL DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`PIPELINE_ID`, `TASK_ID`) USING BTREE
 ) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='流水线任务表';
+
+-- ----------------------------
+-- Table structure for T_REPOSITORY_EVENT
+-- ----------------------------
+
+CREATE TABLE `T_REPOSITORY_EVENT` (
+  `EVENT_ID` varchar(64) NOT NULL,
+  `SCM_ID` varchar(32) DEFAULT NULL COMMENT '代码库标识(\r\n工蜂--gitProjectId;\r\ngithub--gitProjectId;\r\ngitlab--gitProjectId;\r\nsvn--svnPath;\r\np4--p4prot;)',
+  `TRIGGER_TYPE` varchar(32) DEFAULT NULL COMMENT '触发类型',
+  `EVENT_TYPE` varchar(255) DEFAULT NULL COMMENT '事件类型',
+  `EVENT_BODY` text COMMENT '事件信息主体',
+  `CREATE_TIME` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`EVENT_ID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='代码库触发器事件信息表';
+
 SET FOREIGN_KEY_CHECKS = 1;
