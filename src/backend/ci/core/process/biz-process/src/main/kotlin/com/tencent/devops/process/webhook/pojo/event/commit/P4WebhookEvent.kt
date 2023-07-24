@@ -27,6 +27,7 @@
 
 package com.tencent.devops.process.webhook.pojo.event.commit
 
+import com.tencent.devops.common.api.pojo.ReplayPipelineInfo
 import com.tencent.devops.common.event.annotation.Event
 import com.tencent.devops.common.event.dispatcher.pipeline.mq.MQ
 import com.tencent.devops.process.webhook.pojo.event.commit.enum.CommitEventType
@@ -36,10 +37,12 @@ data class P4WebhookEvent(
     override val requestContent: String,
     override var retryTime: Int = 3,
     override var delayMills: Int = 0,
-    override val commitEventType: CommitEventType = CommitEventType.P4
+    override val commitEventType: CommitEventType = CommitEventType.P4,
+    override val pipelineList: List<ReplayPipelineInfo>? = null
 ) : ICodeWebhookEvent(
     requestContent = requestContent,
     retryTime = retryTime,
     delayMills = delayMills,
-    commitEventType = commitEventType
+    commitEventType = commitEventType,
+    pipelineList = pipelineList
 )

@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.tencent.devops.common.api.enums.RepositoryTypeNew
 import com.tencent.devops.common.api.enums.ScmType
+import com.tencent.devops.common.api.pojo.ReplayPipelineInfo
 import com.tencent.devops.common.api.util.JsonUtil
 import com.tencent.devops.common.api.util.Watcher
 import com.tencent.devops.common.client.Client
@@ -116,7 +117,10 @@ abstract class PipelineBuildWebhookService : ApplicationContextAware {
         private val logger = LoggerFactory.getLogger(PipelineBuildWebhookService::class.java)
     }
 
-    fun externalCodeSvnBuild(e: String): Boolean {
+    fun externalCodeSvnBuild(
+        e: String,
+        pipelineList: List<ReplayPipelineInfo>?
+    ): Boolean {
         logger.info("Trigger code svn build - $e")
 
         val event = try {
@@ -128,10 +132,19 @@ abstract class PipelineBuildWebhookService : ApplicationContextAware {
 
         val svnWebHookMatcher = scmWebhookMatcherBuilder.createSvnWebHookMatcher(event)
 
-        return startProcessByWebhook(CodeSVNWebHookTriggerElement.classType, svnWebHookMatcher)
+        return startProcessByWebhook(
+            codeRepositoryType = CodeSVNWebHookTriggerElement.classType,
+            matcher = svnWebHookMatcher,
+            pipelineList = pipelineList
+        )
     }
 
-    fun externalCodeGitBuild(codeRepositoryType: String, event: String?, body: String): Boolean {
+    fun externalCodeGitBuild(
+        codeRepositoryType: String,
+        event: String?,
+        body: String,
+        pipelineList: List<ReplayPipelineInfo>?
+    ): Boolean {
         logger.info("Trigger code git build($body|$event)")
 
         val gitEvent = try {
@@ -150,10 +163,17 @@ abstract class PipelineBuildWebhookService : ApplicationContextAware {
             return true
         }
 
-        return startProcessByWebhook(codeRepositoryType, gitWebHookMatcher)
+        return startProcessByWebhook(
+            codeRepositoryType = codeRepositoryType,
+            matcher = gitWebHookMatcher,
+            pipelineList = pipelineList
+        )
     }
 
-    fun externalGitlabBuild(e: String): Boolean {
+    fun externalGitlabBuild(
+        e: String,
+        pipelineList: List<ReplayPipelineInfo>?
+    ): Boolean {
         logger.info("Trigger gitlab build($e)")
 
         val event = try {
@@ -165,10 +185,20 @@ abstract class PipelineBuildWebhookService : ApplicationContextAware {
 
         val gitlabWebHookMatcher = scmWebhookMatcherBuilder.createGitlabWebHookMatcher(event)
 
-        return startProcessByWebhook(CodeGitlabWebHookTriggerElement.classType, gitlabWebHookMatcher)
+        return startProcessByWebhook(
+            codeRepositoryType = CodeGitlabWebHookTriggerElement.classType,
+            matcher = gitlabWebHookMatcher,
+            pipelineList = pipelineList
+        )
     }
 
-    fun externalCodeGithubBuild(eventType: String, guid: String, signature: String, body: String): Boolean {
+    fun externalCodeGithubBuild(
+        eventType: String,
+        guid: String,
+        signature: String,
+        body: String,
+        pipelineList: List<ReplayPipelineInfo>?
+    ): Boolean {
         logger.info("Trigger code github build (event=$eventType, guid=$guid, signature=$signature, body=$body)")
 
         val event: GithubEvent = when (eventType) {
@@ -208,10 +238,17 @@ abstract class PipelineBuildWebhookService : ApplicationContextAware {
             )
             return true
         }
-        return startProcessByWebhook(CodeGithubWebHookTriggerElement.classType, githubWebHookMatcher)
+        return startProcessByWebhook(
+            codeRepositoryType = CodeGithubWebHookTriggerElement.classType,
+            matcher = githubWebHookMatcher,
+            pipelineList = pipelineList
+        )
     }
 
-    fun externalP4Build(body: String): Boolean {
+    fun externalP4Build(
+        body: String,
+        pipelineList: List<ReplayPipelineInfo>?
+    ): Boolean {
         logger.info("Trigger p4 build($body)")
 
         val event = try {
@@ -223,10 +260,18 @@ abstract class PipelineBuildWebhookService : ApplicationContextAware {
 
         val p4WebHookMatcher = scmWebhookMatcherBuilder.createP4WebHookMatcher(event)
 
-        return startProcessByWebhook(CodeP4WebHookTriggerElement.classType, p4WebHookMatcher)
+        return startProcessByWebhook(
+            codeRepositoryType = CodeP4WebHookTriggerElement.classType,
+            matcher = p4WebHookMatcher,
+            pipelineList = pipelineList
+        )
     }
 
-    private fun startProcessByWebhook(codeRepositoryType: String, matcher: ScmWebhookMatcher): Boolean {
+    private fun startProcessByWebhook(
+        codeRepositoryType: String,
+        matcher: ScmWebhookMatcher,
+        pipelineList: List<ReplayPipelineInfo>?
+    ): Boolean {
         val watcher = Watcher("${matcher.getRepoName()}|${matcher.getRevision()}|webhook trigger")
         PipelineWebhookBuildLogContext.addRepoInfo(repoName = matcher.getRepoName(), commitId = matcher.getRevision())
         try {
@@ -269,7 +314,8 @@ abstract class PipelineBuildWebhookService : ApplicationContextAware {
                             projectId = projectId,
                             pipelineId = pipelineId,
                             codeRepositoryType = codeRepositoryType,
-                            matcher = matcher
+                            matcher = matcher,
+                            pipelineList = pipelineList
                         )
                     ) return@outside
                 } catch (e: Throwable) {
@@ -350,7 +396,8 @@ abstract class PipelineBuildWebhookService : ApplicationContextAware {
         projectId: String,
         pipelineId: String,
         codeRepositoryType: String,
-        matcher: ScmWebhookMatcher
+        matcher: ScmWebhookMatcher,
+        pipelineList: List<ReplayPipelineInfo>?
     ): Boolean {
         val pipelineInfo = pipelineRepositoryService.getPipelineInfo(projectId, pipelineId)
             ?: return false
@@ -411,7 +458,8 @@ abstract class PipelineBuildWebhookService : ApplicationContextAware {
                 logger.warn("$pipelineId|repo[$repositoryConfig] does not exist")
                 return@elements
             }
-
+            // 需要触发的流水线
+            webHookParams.includePipelines = pipelineList
             val matchResult = matcher.isMatch(projectId, pipelineId, repo, webHookParams)
             if (matchResult.isMatch) {
                 try {

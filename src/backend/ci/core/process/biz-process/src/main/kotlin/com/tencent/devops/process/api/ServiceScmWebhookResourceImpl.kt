@@ -27,8 +27,11 @@
 
 package com.tencent.devops.process.api
 
+import com.tencent.devops.common.api.enums.ScmType
 import com.tencent.devops.common.api.model.SQLPage
 import com.tencent.devops.common.api.pojo.Result
+import com.tencent.devops.common.api.pojo.WebhookReplayParams
+import com.tencent.devops.common.api.util.JsonUtil
 import com.tencent.devops.common.web.RestResource
 import com.tencent.devops.common.webhook.pojo.code.github.GithubWebhook
 import com.tencent.devops.process.api.service.ServiceScmWebhookResource
@@ -39,7 +42,13 @@ import com.tencent.devops.process.pojo.webhook.PipelineWebhook
 import com.tencent.devops.process.pojo.webhook.PipelineWebhookBuildLogDetail
 import com.tencent.devops.process.service.webhook.PipelineBuildWebhookService
 import com.tencent.devops.process.webhook.CodeWebhookEventDispatcher
+import com.tencent.devops.process.webhook.pojo.event.commit.GitWebhookEvent
 import com.tencent.devops.process.webhook.pojo.event.commit.GithubWebhookEvent
+import com.tencent.devops.process.webhook.pojo.event.commit.GitlabWebhookEvent
+import com.tencent.devops.process.webhook.pojo.event.commit.P4WebhookEvent
+import com.tencent.devops.process.webhook.pojo.event.commit.SvnWebhookEvent
+import com.tencent.devops.process.webhook.pojo.event.commit.TGitWebhookEvent
+import org.slf4j.LoggerFactory
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.beans.factory.annotation.Autowired
 
@@ -100,5 +109,83 @@ class ServiceScmWebhookResourceImpl @Autowired constructor(
 
             )
         )
+    }
+
+    @SuppressWarnings("LongMethod")
+    override fun webhookReplay(
+        userId: String,
+        replayParams: WebhookReplayParams
+    ) {
+        logger.info("start replay webhook|userId[$userId]|replayParams[$replayParams]")
+        with(replayParams){
+            when(scmType){
+                ScmType.CODE_GIT -> {
+                    CodeWebhookEventDispatcher.dispatchEvent(
+                        rabbitTemplate = rabbitTemplate,
+                        event = GitWebhookEvent(
+                            requestContent = body,
+                            event = eventType,
+                            secret = secret,
+                            pipelineList = pipelineList
+                        )
+                    )
+                }
+                ScmType.CODE_TGIT -> {
+                    CodeWebhookEventDispatcher.dispatchEvent(
+                        rabbitTemplate = rabbitTemplate,
+                        event = TGitWebhookEvent(
+                            requestContent = body,
+                            event = eventType,
+                            secret = secret,
+                            pipelineList = pipelineList
+                        )
+                    )
+                }
+                ScmType.CODE_GITLAB -> {
+                    CodeWebhookEventDispatcher.dispatchEvent(
+                        rabbitTemplate = rabbitTemplate,
+                        event = GitlabWebhookEvent(
+                            requestContent = body,
+                            pipelineList = pipelineList
+                        )
+                    )
+                }
+                ScmType.GITHUB -> {
+                    CodeWebhookEventDispatcher.dispatchGithubEvent(
+                        rabbitTemplate = rabbitTemplate,
+                        event = GithubWebhookEvent(
+                            githubWebhook = JsonUtil.to(
+                                body,
+                                GithubWebhook::class.java
+                            ),
+                            pipelineList = pipelineList
+                        )
+                    )
+                }
+                ScmType.CODE_SVN -> {
+                    CodeWebhookEventDispatcher.dispatchEvent(
+                        rabbitTemplate = rabbitTemplate,
+                        event = SvnWebhookEvent(
+                            requestContent = body,
+                            pipelineList = pipelineList
+                        )
+                    )
+                }
+                ScmType.CODE_P4 -> {
+                    CodeWebhookEventDispatcher.dispatchEvent(
+                        rabbitTemplate = rabbitTemplate,
+                        event = P4WebhookEvent(
+                            requestContent = body,
+                            pipelineList = pipelineList
+                        )
+                    )
+                }
+                else -> throw IllegalArgumentException("Unknown repository type|${replayParams.scmType}")
+            }
+        }
+    }
+
+    companion object{
+        val logger = LoggerFactory.getLogger(ServiceScmWebhookResourceImpl::class.java)
     }
 }

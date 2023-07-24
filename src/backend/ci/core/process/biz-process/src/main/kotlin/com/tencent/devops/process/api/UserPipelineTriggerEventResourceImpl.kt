@@ -30,11 +30,13 @@ package com.tencent.devops.process.api
 import com.tencent.devops.common.api.pojo.Page
 import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.common.api.util.PageUtil
+import com.tencent.devops.common.pipeline.enums.PipelineTriggerType
+import com.tencent.devops.common.pipeline.pojo.element.trigger.enums.CodeEventType
 import com.tencent.devops.common.web.RestResource
 import com.tencent.devops.process.api.user.UserPipelineTriggerEventResource
 import com.tencent.devops.process.pojo.PipelineTriggerEvent
+import com.tencent.devops.process.pojo.RepositoryEventHistory
 import com.tencent.devops.process.service.PipelineTriggerEventService
-import com.tencent.devops.repository.pojo.RepositoryEventHistory
 import org.springframework.beans.factory.annotation.Autowired
 
 @RestResource
@@ -46,9 +48,11 @@ class UserPipelineTriggerEventResourceImpl @Autowired constructor(
         userId: String,
         projectId: String,
         pipelineId: String,
-        triggerType: String?,
-        eventType: String?,
+        triggerType: PipelineTriggerType?,
+        eventType: CodeEventType?,
         triggerUser: String?,
+        startTime: Long?,
+        endTime: Long?,
         page: Int?,
         pageSize: Int?
     ): Result<Page<PipelineTriggerEvent>> {
@@ -59,9 +63,11 @@ class UserPipelineTriggerEventResourceImpl @Autowired constructor(
             userId = userId,
             projectId = projectId,
             pipelineId = pipelineId,
-            triggerType = triggerType,
+            triggerType = triggerType?.name,
             triggerUser = triggerUser,
-            eventType = eventType,
+            eventType = eventType?.name,
+            startTime = startTime,
+            endTime = endTime,
             limit = limit.limit,
             offset = limit.offset
         )
@@ -79,9 +85,11 @@ class UserPipelineTriggerEventResourceImpl @Autowired constructor(
         userId: String,
         projectId: String,
         repoHashId: String,
-        triggerType: String?,
-        eventType: String?,
+        triggerType: PipelineTriggerType?,
+        eventType: CodeEventType?,
         triggerUser: String?,
+        startTime: Long?,
+        endTime: Long?,
         pipelineName: String?,
         page: Int?,
         pageSize: Int?
@@ -93,10 +101,12 @@ class UserPipelineTriggerEventResourceImpl @Autowired constructor(
             userId = userId,
             projectId = projectId,
             repoHashId = repoHashId,
-            triggerType = triggerType,
-            eventType = eventType,
+            triggerType = triggerType?.name,
+            eventType = eventType?.name,
             triggerUser = triggerUser,
             pipelineName = pipelineName,
+            startTime = startTime,
+            endTime = endTime,
             limit = limit.limit,
             offset = limit.offset
         )
@@ -115,8 +125,8 @@ class UserPipelineTriggerEventResourceImpl @Autowired constructor(
         projectId: String,
         repoHashId: String,
         eventId: String,
-        triggerType: String?,
-        eventType: String?,
+        triggerType: PipelineTriggerType?,
+        eventType: CodeEventType?,
         triggerUser: String?,
         pipelineName: String?,
         page: Int?,

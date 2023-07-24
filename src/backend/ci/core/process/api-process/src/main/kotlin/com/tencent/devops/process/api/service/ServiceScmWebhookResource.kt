@@ -31,6 +31,7 @@ import com.tencent.devops.common.api.auth.AUTH_HEADER_DEVOPS_PROJECT_ID
 import com.tencent.devops.common.api.auth.AUTH_HEADER_USER_ID
 import com.tencent.devops.common.api.model.SQLPage
 import com.tencent.devops.common.api.pojo.Result
+import com.tencent.devops.common.api.pojo.WebhookReplayParams
 import com.tencent.devops.common.webhook.pojo.code.github.GithubWebhook
 import com.tencent.devops.process.pojo.code.WebhookCommit
 import com.tencent.devops.process.pojo.webhook.PipelineWebhook
@@ -113,4 +114,14 @@ interface ServiceScmWebhookResource {
         @QueryParam("pageSize")
         pageSize: Int?
     ): Result<SQLPage<PipelineWebhookBuildLogDetail>?>
+
+    @ApiOperation("代码库webhook回放")
+    @POST
+    @Path("/webhook/replay")
+    fun webhookReplay(
+        @ApiParam("授权用户", required = true)
+        @HeaderParam(AUTH_HEADER_USER_ID)
+        userId: String,
+        replayParams: WebhookReplayParams
+    )
 }

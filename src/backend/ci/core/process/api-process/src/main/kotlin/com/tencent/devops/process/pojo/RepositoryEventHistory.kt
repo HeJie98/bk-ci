@@ -1,4 +1,4 @@
-package com.tencent.devops.repository.pojo
+package com.tencent.devops.process.pojo
 
 import io.swagger.annotations.ApiModel
 import io.swagger.annotations.ApiModelProperty
@@ -8,7 +8,7 @@ data class RepositoryEventHistory constructor(
     @ApiModelProperty("事件Id，网关traceId")
     val eventId: String,
     @ApiModelProperty("事件信息")
-    val eventMessage: String,
+    val eventMessage: PipelineTriggerEventMessage,
     @ApiModelProperty("事件类型")
     val eventType: String,
     @ApiModelProperty("事件发生时间")

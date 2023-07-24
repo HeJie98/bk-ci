@@ -72,25 +72,34 @@ class WebhookEventListener constructor(
                 requestContent = event.requestContent
             )
             when (event.commitEventType) {
-                CommitEventType.SVN -> pipelineBuildService.externalCodeSvnBuild(event.requestContent)
+                CommitEventType.SVN -> pipelineBuildService.externalCodeSvnBuild(
+                    event.requestContent,
+                    event.pipelineList
+                )
                 CommitEventType.GIT -> {
                     pipelineBuildService.externalCodeGitBuild(
                         codeRepositoryType = CodeGitWebHookTriggerElement.classType,
                         event = event.event,
-                        body = event.requestContent
+                        body = event.requestContent,
+                        pipelineList = event.pipelineList
                     )
                 }
                 CommitEventType.GITLAB -> pipelineBuildService.externalGitlabBuild(
-                    e = event.requestContent
+                    e = event.requestContent,
+                    pipelineList = event.pipelineList
                 )
                 CommitEventType.TGIT -> {
                     pipelineBuildService.externalCodeGitBuild(
                         codeRepositoryType = CodeTGitWebHookTriggerElement.classType,
                         event = event.event,
-                        body = event.requestContent
+                        body = event.requestContent,
+                        pipelineList = event.pipelineList
                     )
                 }
-                CommitEventType.P4 -> pipelineBuildService.externalP4Build(event.requestContent)
+                CommitEventType.P4 -> pipelineBuildService.externalP4Build(
+                    body = event.requestContent,
+                    pipelineList = event.pipelineList
+                )
             }
             result = true
         } catch (ignore: Throwable) {
@@ -178,7 +187,8 @@ class WebhookEventListener constructor(
                 eventType = thisGithubWebhook.event,
                 guid = thisGithubWebhook.guid,
                 signature = thisGithubWebhook.signature,
-                body = thisGithubWebhook.body
+                body = thisGithubWebhook.body,
+                pipelineList = event.pipelineList
             )
             result = true
         } catch (ignore: Throwable) {

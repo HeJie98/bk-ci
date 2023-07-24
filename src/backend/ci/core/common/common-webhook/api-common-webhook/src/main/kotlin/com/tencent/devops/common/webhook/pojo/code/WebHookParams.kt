@@ -28,6 +28,7 @@
 package com.tencent.devops.common.webhook.pojo.code
 
 import com.tencent.devops.common.api.enums.RepositoryConfig
+import com.tencent.devops.common.api.pojo.ReplayPipelineInfo
 import com.tencent.devops.common.pipeline.pojo.element.trigger.enums.CodeEventType
 import com.tencent.devops.common.pipeline.pojo.element.trigger.enums.CodeType
 import com.tencent.devops.common.pipeline.pojo.element.trigger.enums.PathFilterType
@@ -73,5 +74,7 @@ data class WebHookParams(
     var thirdUrl: String? = null,
     var thirdSecretToken: String? = null,
     // 插件版本
-    var version: String? = null
+    var version: String? = null,
+    // 需要触发的流水线信息
+    var includePipelines: List<ReplayPipelineInfo>? = null
 )

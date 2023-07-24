@@ -27,6 +27,7 @@
 
 package com.tencent.devops.process.service.webhook
 
+import com.tencent.devops.common.api.pojo.ReplayPipelineInfo
 import com.tencent.devops.common.auth.api.AuthPermission
 import com.tencent.devops.common.service.prometheus.BkTimed
 import com.tencent.devops.common.web.utils.I18nUtil
@@ -60,8 +61,9 @@ class SamplePipelineBuildWebhookService : PipelineBuildWebhookService() {
         projectId: String,
         pipelineId: String,
         codeRepositoryType: String,
-        matcher: ScmWebhookMatcher
+        matcher: ScmWebhookMatcher,
+        pipelineList: List<ReplayPipelineInfo>?
     ): Boolean {
-        return super.webhookTriggerPipelineBuild(projectId, pipelineId, codeRepositoryType, matcher)
+        return super.webhookTriggerPipelineBuild(projectId, pipelineId, codeRepositoryType, matcher, pipelineList)
     }
 }

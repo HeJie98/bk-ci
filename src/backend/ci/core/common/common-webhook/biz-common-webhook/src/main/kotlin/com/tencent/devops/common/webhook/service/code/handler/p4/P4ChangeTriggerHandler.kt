@@ -38,6 +38,7 @@ import com.tencent.devops.common.webhook.service.code.EventCacheService
 import com.tencent.devops.common.webhook.service.code.filter.EventTypeFilter
 import com.tencent.devops.common.webhook.service.code.filter.P4PortFilter
 import com.tencent.devops.common.webhook.service.code.filter.PathFilterFactory
+import com.tencent.devops.common.webhook.service.code.filter.PipelineFilter
 import com.tencent.devops.common.webhook.service.code.filter.WebhookFilter
 import com.tencent.devops.common.webhook.service.code.filter.WebhookFilterResponse
 import com.tencent.devops.common.webhook.service.code.handler.CodeWebhookTriggerHandler
@@ -145,7 +146,12 @@ class P4ChangeTriggerHandler(
                     ).doFilter(response)
                 }
             }
-            return listOf(p4Filter, urlFilter, eventTypeFilter, pathFilter)
+            val pipelineFilter = PipelineFilter(
+                projectId = projectId,
+                pipelineId = pipelineId,
+                includePipelines = includePipelines
+            )
+            return listOf(p4Filter, urlFilter, eventTypeFilter, pathFilter, pipelineFilter)
         }
     }
 

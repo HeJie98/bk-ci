@@ -372,7 +372,8 @@ class GithubService @Autowired constructor(
     override fun isOAuth(
         userId: String,
         projectId: String,
-        refreshToken: Boolean?
+        refreshToken: Boolean?,
+        validationCheck: Boolean?
     ): AuthorizeResult {
         logger.info("isOAuth userId is: $userId,refreshToken is: $refreshToken")
         val accessToken = if (refreshToken == true) {
@@ -384,9 +385,25 @@ class GithubService @Autowired constructor(
             url = githubOAuthService.getGithubOauth(
                 projectId = projectId,
                 userId = userId,
-                repoHashId = null
+                repoHashId = null,
+                popupTag = ""
             ).redirectUrl
         )
+        if (validationCheck == true) {
+            try {
+                getRepositories(accessToken.accessToken)
+            } catch (e: Exception) {
+                return AuthorizeResult(
+                    status = HTTP_403,
+                    url = githubOAuthService.getGithubOauth(
+                        projectId = projectId,
+                        userId = userId,
+                        repoHashId = null,
+                        popupTag = ""
+                    ).redirectUrl
+                )
+            }
+        }
         logger.info("github isOAuth accessToken is: $accessToken")
         return AuthorizeResult(200, "")
     }

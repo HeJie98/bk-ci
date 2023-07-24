@@ -37,6 +37,7 @@ import com.tencent.devops.common.webhook.pojo.code.PathFilterConfig
 import com.tencent.devops.common.webhook.pojo.code.WebHookParams
 import com.tencent.devops.common.webhook.pojo.code.svn.SvnCommitEvent
 import com.tencent.devops.common.webhook.service.code.filter.PathFilterFactory
+import com.tencent.devops.common.webhook.service.code.filter.PipelineFilter
 import com.tencent.devops.common.webhook.service.code.filter.ProjectNameFilter
 import com.tencent.devops.common.webhook.service.code.filter.UserFilter
 import com.tencent.devops.common.webhook.service.code.filter.WebhookFilter
@@ -113,7 +114,12 @@ class SvnCommitTriggerHandler : CodeWebhookTriggerHandler<SvnCommitEvent> {
                     includedPaths = getIncludePaths(projectRelativePath)
                 )
             )
-            return listOf(projectNameFilter, userFilter, pathFilter)
+            val pipelineFilter = PipelineFilter(
+                projectId = projectId,
+                pipelineId = pipelineId,
+                includePipelines = includePipelines
+            )
+            return listOf(projectNameFilter, userFilter, pathFilter, pipelineFilter)
         }
     }
 

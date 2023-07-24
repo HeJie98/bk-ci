@@ -32,6 +32,7 @@ import com.tencent.devops.common.webhook.pojo.code.WebHookParams
 import com.tencent.devops.common.webhook.service.code.filter.BranchFilter
 import com.tencent.devops.common.webhook.service.code.filter.EventTypeFilter
 import com.tencent.devops.common.webhook.service.code.filter.GitUrlFilter
+import com.tencent.devops.common.webhook.service.code.filter.PipelineFilter
 import com.tencent.devops.common.webhook.service.code.filter.UserFilter
 import com.tencent.devops.common.webhook.service.code.filter.WebhookFilter
 import com.tencent.devops.common.webhook.util.WebhookUtils
@@ -50,6 +51,7 @@ interface GitHookTriggerHandler<T : CodeWebhookEvent> : CodeWebhookTriggerHandle
         filters.addAll(
             initCommonFilters(
                 event = event,
+                projectId = projectId,
                 pipelineId = pipelineId,
                 repository = repository,
                 webHookParams = webHookParams
@@ -79,6 +81,7 @@ interface GitHookTriggerHandler<T : CodeWebhookEvent> : CodeWebhookTriggerHandle
 
     private fun initCommonFilters(
         event: T,
+        projectId: String,
         pipelineId: String,
         repository: Repository,
         webHookParams: WebHookParams
@@ -108,7 +111,12 @@ interface GitHookTriggerHandler<T : CodeWebhookEvent> : CodeWebhookTriggerHandle
                 includedBranches = WebhookUtils.convert(branchName),
                 excludedBranches = WebhookUtils.convert(excludeBranchName)
             )
-            return listOf(urlFilter, eventTypeFilter, userFilter, branchFilter)
+            val pipelineFilter = PipelineFilter(
+                pipelineId = pipelineId,
+                projectId = projectId,
+                includePipelines = includePipelines
+            )
+            return listOf(urlFilter, eventTypeFilter, userFilter, branchFilter, pipelineFilter)
         }
     }
 }

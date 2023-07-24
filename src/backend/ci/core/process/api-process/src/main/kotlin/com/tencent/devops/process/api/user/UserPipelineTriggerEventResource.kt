@@ -4,8 +4,10 @@ import com.tencent.devops.common.api.auth.AUTH_HEADER_USER_ID
 import com.tencent.devops.common.api.auth.AUTH_HEADER_USER_ID_DEFAULT_VALUE
 import com.tencent.devops.common.api.pojo.Page
 import com.tencent.devops.common.api.pojo.Result
+import com.tencent.devops.common.pipeline.enums.PipelineTriggerType
+import com.tencent.devops.common.pipeline.pojo.element.trigger.enums.CodeEventType
 import com.tencent.devops.process.pojo.PipelineTriggerEvent
-import com.tencent.devops.repository.pojo.RepositoryEventHistory
+import com.tencent.devops.process.pojo.RepositoryEventHistory
 import io.swagger.annotations.Api
 import io.swagger.annotations.ApiOperation
 import io.swagger.annotations.ApiParam
@@ -39,13 +41,19 @@ interface UserPipelineTriggerEventResource {
         pipelineId: String,
         @ApiParam("触发器类型", required = false)
         @QueryParam("triggerType")
-        triggerType: String?,
+        triggerType: PipelineTriggerType?,
         @ApiParam("事件类型", required = false)
         @QueryParam("eventType")
-        eventType: String?,
+        eventType: CodeEventType?,
         @ApiParam("触发人", required = false)
         @QueryParam("triggerUser")
         triggerUser: String?,
+        @ApiParam("开始时间(时间戳形式)", required = false)
+        @QueryParam("startTimeEndTime")
+        startTime: Long?,
+        @ApiParam("结束时间(时间戳形式)", required = false)
+        @QueryParam("endTimeStartTime")
+        endTime: Long?,
         @ApiParam("第几页", required = false, defaultValue = "1")
         @QueryParam("page")
         page: Int?,
@@ -69,13 +77,19 @@ interface UserPipelineTriggerEventResource {
         repoHashId: String,
         @ApiParam("触发器类型", required = false)
         @QueryParam("triggerType")
-        triggerType: String?,
+        triggerType: PipelineTriggerType?,
         @ApiParam("事件类型", required = false)
         @QueryParam("eventType")
-        eventType: String?,
+        eventType: CodeEventType?,
         @ApiParam("触发人", required = false)
         @QueryParam("triggerUser")
         triggerUser: String?,
+        @ApiParam("开始时间(时间戳形式)", required = false)
+        @QueryParam("startTimeEndTime")
+        startTime: Long?,
+        @ApiParam("结束时间(时间戳形式)", required = false)
+        @QueryParam("endTimeStartTime")
+        endTime: Long?,
         @ApiParam("流水线名称", required = false)
         @QueryParam("pipelineName")
         pipelineName: String?,
@@ -87,7 +101,7 @@ interface UserPipelineTriggerEventResource {
         pageSize: Int?
     ): Result<Page<RepositoryEventHistory>>
 
-    @ApiOperation("根据代码库HashID查询触发信息")
+    @ApiOperation("查询代码库事件触发详情")
     @GET
     @Path("/{projectId}/{repoHashId}/repoTriggerDetail")
     fun getTriggerDetail(
@@ -105,10 +119,10 @@ interface UserPipelineTriggerEventResource {
         eventId: String,
         @ApiParam("触发器类型", required = false)
         @QueryParam("triggerType")
-        triggerType: String?,
+        triggerType: PipelineTriggerType?,
         @ApiParam("事件类型", required = false)
         @QueryParam("eventType")
-        eventType: String?,
+        eventType: CodeEventType?,
         @ApiParam("触发人", required = false)
         @QueryParam("triggerUser")
         triggerUser: String?,

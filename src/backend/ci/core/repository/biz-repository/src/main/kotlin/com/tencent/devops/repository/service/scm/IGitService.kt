@@ -370,4 +370,6 @@ interface IGitService {
         path: String?,
         ignoreWhiteSpace: Boolean?
     ): Result<List<GitDiff>>
+
+    fun getDefaultRedirectUrl(): Result<String>
 }

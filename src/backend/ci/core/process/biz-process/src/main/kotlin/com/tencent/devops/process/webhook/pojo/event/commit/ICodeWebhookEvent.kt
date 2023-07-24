@@ -27,6 +27,7 @@
 
 package com.tencent.devops.process.webhook.pojo.event.commit
 
+import com.tencent.devops.common.api.pojo.ReplayPipelineInfo
 import com.tencent.devops.common.service.trace.TraceTag
 import com.tencent.devops.process.webhook.pojo.event.commit.enum.CommitEventType
 import org.slf4j.MDC
@@ -39,5 +40,6 @@ open class ICodeWebhookEvent(
     open val commitEventType: CommitEventType,
     open var traceId: String? = MDC.get(TraceTag.BIZID),
     open val event: String? = null,
-    open val secret: String? = null
+    open val secret: String? = null,
+    open val pipelineList: List<ReplayPipelineInfo>? = null
 )

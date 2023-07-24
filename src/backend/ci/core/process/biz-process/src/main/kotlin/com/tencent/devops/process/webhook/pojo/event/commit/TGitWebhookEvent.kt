@@ -27,6 +27,7 @@
 
 package com.tencent.devops.process.webhook.pojo.event.commit
 
+import com.tencent.devops.common.api.pojo.ReplayPipelineInfo
 import com.tencent.devops.common.event.annotation.Event
 import com.tencent.devops.common.event.dispatcher.pipeline.mq.MQ
 import com.tencent.devops.process.webhook.pojo.event.commit.enum.CommitEventType
@@ -38,12 +39,14 @@ data class TGitWebhookEvent(
     override var delayMills: Int = 0,
     override val commitEventType: CommitEventType = CommitEventType.TGIT,
     override val event: String,
-    override val secret: String?
+    override val secret: String?,
+    override val pipelineList: List<ReplayPipelineInfo>? = null
 ) : ICodeWebhookEvent(
     requestContent = requestContent,
     retryTime = retryTime,
     delayMills = delayMills,
     commitEventType = commitEventType,
     event = event,
-    secret = secret
+    secret = secret,
+    pipelineList = pipelineList
 )
