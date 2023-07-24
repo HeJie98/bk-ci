@@ -1,5 +1,6 @@
 package com.tencent.devops.process.service
 
+import com.fasterxml.jackson.core.type.TypeReference
 import com.tencent.devops.common.api.exception.ParamBlankException
 import com.tencent.devops.common.api.model.SQLPage
 import com.tencent.devops.common.api.util.DateTimeUtil
@@ -8,6 +9,7 @@ import com.tencent.devops.common.pipeline.enums.PipelineTriggerType
 import com.tencent.devops.common.pipeline.pojo.element.trigger.enums.CodeEventType
 import com.tencent.devops.process.dao.PipelineTriggerEventDao
 import com.tencent.devops.process.pojo.PipelineTriggerEvent
+import com.tencent.devops.process.pojo.PipelineTriggerEventMessage
 import com.tencent.devops.process.pojo.RepositoryEventHistory
 import org.jooq.DSLContext
 import org.slf4j.LoggerFactory
@@ -20,7 +22,7 @@ import java.time.format.DateTimeFormatter
 class PipelineTriggerEventService @Autowired constructor(
     val pipelineTriggerEventDao: PipelineTriggerEventDao,
     val dslContext: DSLContext
-){
+) {
     fun byPipeline(
         userId: String,
         projectId: String,
@@ -55,7 +57,7 @@ class PipelineTriggerEventService @Autowired constructor(
         )
         val eventHistory = mutableListOf<PipelineTriggerEvent>()
         records.map {
-            with(it){
+            with(it) {
                 eventHistory.add(
                     PipelineTriggerEvent(
                         projectId = projectId,
@@ -67,7 +69,10 @@ class PipelineTriggerEventService @Autowired constructor(
                         } else {
                             CodeEventType.valueOf(eventType)
                         },
-                        eventMessage = JsonUtil.to(eventMessage),
+                        eventMessage = JsonUtil.anyTo(
+                            any = eventMessage,
+                            object : TypeReference<PipelineTriggerEventMessage>() {}
+                        ),
                         status = status,
                         pipelineId = pipelineId,
                         pipelineName = pipelineName,
@@ -120,7 +125,10 @@ class PipelineTriggerEventService @Autowired constructor(
             records.add(
                 RepositoryEventHistory(
                     eventId = eventInfo.eventId,
-                    eventMessage = JsonUtil.to(eventInfo.eventMessage),
+                    eventMessage = JsonUtil.anyTo(
+                        any = eventInfo.eventMessage,
+                        object : TypeReference<PipelineTriggerEventMessage>() {}
+                    ),
                     eventType = eventInfo.eventType,
                     eventTime = repoTriggerList[0].createTime.format(
                         DateTimeFormatter.ofPattern(DateTimeUtil.YYYY_MM_DD_HH_MM_SS)
@@ -141,7 +149,7 @@ class PipelineTriggerEventService @Autowired constructor(
             startTime = startTime,
             endTime = endTime
         )
-        return SQLPage(count = repositoryEventCount.toLong(),records = records)
+        return SQLPage(count = repositoryEventCount.toLong(), records = records)
     }
 
     fun savePipelineTriggerEvent(pipelineTriggerEvent: PipelineTriggerEvent) {
@@ -204,7 +212,10 @@ class PipelineTriggerEventService @Autowired constructor(
                 } else {
                     CodeEventType.valueOf(it.eventType)
                 },
-                eventMessage = JsonUtil.to(it.eventMessage),
+                eventMessage = JsonUtil.anyTo(
+                    any = it.eventMessage,
+                    object : TypeReference<PipelineTriggerEventMessage>() {}
+                ),
                 status = it.status,
                 pipelineId = it.pipelineId,
                 pipelineName = it.pipelineName,
