@@ -69,9 +69,9 @@ class PipelineTriggerEventService @Autowired constructor(
                         } else {
                             CodeEventType.valueOf(eventType)
                         },
-                        eventMessage = JsonUtil.anyTo(
-                            any = eventMessage,
-                            object : TypeReference<PipelineTriggerEventMessage>() {}
+                        eventMessage = JsonUtil.to(
+                            eventMessage,
+                            PipelineTriggerEventMessage::class.java
                         ),
                         status = status,
                         pipelineId = pipelineId,
@@ -125,9 +125,9 @@ class PipelineTriggerEventService @Autowired constructor(
             records.add(
                 RepositoryEventHistory(
                     eventId = eventInfo.eventId,
-                    eventMessage = JsonUtil.anyTo(
-                        any = eventInfo.eventMessage,
-                        object : TypeReference<PipelineTriggerEventMessage>() {}
+                    eventMessage = JsonUtil.to(
+                        eventInfo.eventMessage,
+                        PipelineTriggerEventMessage::class.java
                     ),
                     eventType = eventInfo.eventType,
                     eventTime = repoTriggerList[0].createTime.format(
@@ -212,9 +212,9 @@ class PipelineTriggerEventService @Autowired constructor(
                 } else {
                     CodeEventType.valueOf(it.eventType)
                 },
-                eventMessage = JsonUtil.anyTo(
-                    any = it.eventMessage,
-                    object : TypeReference<PipelineTriggerEventMessage>() {}
+                eventMessage = JsonUtil.to(
+                    it.eventMessage,
+                    PipelineTriggerEventMessage::class.java
                 ),
                 status = it.status,
                 pipelineId = it.pipelineId,
