@@ -1,6 +1,5 @@
 package com.tencent.devops.process.service
 
-import com.fasterxml.jackson.core.type.TypeReference
 import com.tencent.devops.common.api.exception.ParamBlankException
 import com.tencent.devops.common.api.model.SQLPage
 import com.tencent.devops.common.api.util.DateTimeUtil
@@ -9,7 +8,6 @@ import com.tencent.devops.common.pipeline.enums.PipelineTriggerType
 import com.tencent.devops.common.pipeline.pojo.element.trigger.enums.CodeEventType
 import com.tencent.devops.process.dao.PipelineTriggerEventDao
 import com.tencent.devops.process.pojo.PipelineTriggerEvent
-import com.tencent.devops.process.pojo.PipelineTriggerEventMessage
 import com.tencent.devops.process.pojo.RepositoryEventHistory
 import org.jooq.DSLContext
 import org.slf4j.LoggerFactory
@@ -69,10 +67,7 @@ class PipelineTriggerEventService @Autowired constructor(
                         } else {
                             CodeEventType.valueOf(eventType)
                         },
-                        eventMessage = JsonUtil.anyTo(
-                            any = eventMessage,
-                            object : TypeReference<PipelineTriggerEventMessage>() {}
-                        ),
+                        eventMessage = JsonUtil.to(eventMessage),
                         status = status,
                         pipelineId = pipelineId,
                         pipelineName = pipelineName,
@@ -125,10 +120,7 @@ class PipelineTriggerEventService @Autowired constructor(
             records.add(
                 RepositoryEventHistory(
                     eventId = eventInfo.eventId,
-                    eventMessage = JsonUtil.anyTo(
-                        any = eventInfo.eventMessage,
-                        object : TypeReference<PipelineTriggerEventMessage>() {}
-                    ),
+                    eventMessage = JsonUtil.to(eventInfo.eventMessage),
                     eventType = eventInfo.eventType,
                     eventTime = repoTriggerList[0].createTime.format(
                         DateTimeFormatter.ofPattern(DateTimeUtil.YYYY_MM_DD_HH_MM_SS)
@@ -212,10 +204,7 @@ class PipelineTriggerEventService @Autowired constructor(
                 } else {
                     CodeEventType.valueOf(it.eventType)
                 },
-                eventMessage = JsonUtil.anyTo(
-                    any = it.eventMessage,
-                    object : TypeReference<PipelineTriggerEventMessage>() {}
-                ),
+                eventMessage = JsonUtil.to(it.eventMessage),
                 status = it.status,
                 pipelineId = it.pipelineId,
                 pipelineName = it.pipelineName,
