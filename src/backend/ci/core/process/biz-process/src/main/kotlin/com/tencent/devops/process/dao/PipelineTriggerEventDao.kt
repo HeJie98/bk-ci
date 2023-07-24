@@ -174,7 +174,7 @@ class PipelineTriggerEventDao {
                 startTime = startTime,
                 endTime = endTime
             )
-            dslContext.select(EVENT_ID, EVENT_MESSAGE, EVENT_TYPE)
+            dslContext.select(EVENT_ID, EVENT_TYPE, EVENT_MESSAGE)
                 .from(this)
                 .where(conditions)
                 .orderBy(CREATE_TIME.desc())
