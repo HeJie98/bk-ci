@@ -76,8 +76,10 @@ import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_MR_COMMITTER
 import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_MR_ID
 import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_SOURCE_BRANCH
 import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_SOURCE_PROJECT_ID
+import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_SOURCE_URL
 import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_TARGET_BRANCH
 import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_TARGET_PROJECT_ID
+import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_TARGET_URL
 import com.tencent.devops.common.webhook.pojo.code.WebHookParams
 import com.tencent.devops.common.webhook.pojo.code.git.GitCommit
 import com.tencent.devops.common.webhook.pojo.code.github.GithubPullRequest
@@ -278,6 +280,8 @@ object WebhookUtils {
         startParams[BK_REPO_GIT_WEBHOOK_MR_BASE_COMMIT] = pullRequest.base.sha ?: ""
         startParams[BK_REPO_GIT_WEBHOOK_MR_TARGET_COMMIT] = pullRequest.base.sha ?: ""
         startParams[BK_REPO_GIT_WEBHOOK_MR_SOURCE_COMMIT] = pullRequest.head.sha ?: ""
+        startParams[PIPELINE_WEBHOOK_SOURCE_URL] = pullRequest.head.repo.cloneUrl
+        startParams[PIPELINE_WEBHOOK_TARGET_URL] = pullRequest.base.repo.cloneUrl
 
         // 兼容stream变量
         startParams[PIPELINE_GIT_HEAD_REF] = pullRequest.head.ref ?: ""
