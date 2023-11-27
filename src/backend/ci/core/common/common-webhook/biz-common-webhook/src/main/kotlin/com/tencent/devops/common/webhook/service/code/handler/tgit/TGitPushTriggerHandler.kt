@@ -79,7 +79,6 @@ import com.tencent.devops.scm.utils.code.git.GitUtils
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
-import java.net.URI
 import java.util.Date
 
 @CodeWebhookHandler
