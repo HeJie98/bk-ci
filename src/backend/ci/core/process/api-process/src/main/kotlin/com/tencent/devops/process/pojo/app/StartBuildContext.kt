@@ -40,6 +40,7 @@ import com.tencent.devops.common.pipeline.pojo.BuildNoType
 import com.tencent.devops.common.pipeline.pojo.BuildParameters
 import com.tencent.devops.common.pipeline.pojo.element.Element
 import com.tencent.devops.common.pipeline.pojo.element.trigger.enums.CodeType
+import com.tencent.devops.common.pipeline.utils.PIPELINE_GIT_EVENT_URL
 import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_EVENT_TYPE
 import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_ISSUE_IID
 import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_MR_ID
@@ -73,6 +74,7 @@ import com.tencent.devops.process.utils.PIPELINE_SKIP_FAILED_TASK
 import com.tencent.devops.process.utils.PIPELINE_START_CHANNEL
 import com.tencent.devops.process.utils.PIPELINE_START_PARENT_BUILD_ID
 import com.tencent.devops.process.utils.PIPELINE_START_PARENT_BUILD_TASK_ID
+import com.tencent.devops.process.utils.PIPELINE_START_PARENT_PROJECT_ID
 import com.tencent.devops.process.utils.PIPELINE_START_TASK_ID
 import com.tencent.devops.process.utils.PIPELINE_START_TYPE
 import com.tencent.devops.process.utils.PIPELINE_START_USER_ID
@@ -292,7 +294,8 @@ data class StartBuildContext(
         }
 
         private fun getWebhookInfo(params: Map<String, String>): WebhookInfo? {
-            if (params[PIPELINE_START_TYPE] != StartType.WEB_HOOK.name) {
+            val startType = params[PIPELINE_START_TYPE]
+            if (startType != StartType.WEB_HOOK.name || startType != StartType.PIPELINE.name) {
                 return null
             }
             return WebhookInfo(
@@ -320,7 +323,12 @@ data class StartBuildContext(
                 tagName = params[BK_REPO_GIT_WEBHOOK_TAG_NAME],
                 issueIid = params[BK_REPO_GIT_WEBHOOK_ISSUE_IID],
                 noteId = params[BK_REPO_GIT_WEBHOOK_NOTE_ID],
-                reviewId = params[BK_REPO_GIT_WEBHOOK_REVIEW_ID]
+                reviewId = params[BK_REPO_GIT_WEBHOOK_REVIEW_ID],
+                parentProjectId = params[PIPELINE_START_PARENT_PROJECT_ID],
+                parentPipelineId = params[PIPELINE_START_PARENT_BUILD_ID],
+                parentBuildId = params[PIPELINE_START_PARENT_BUILD_ID],
+                parentTaskId = params[PIPELINE_START_PARENT_BUILD_TASK_ID],
+                eventUrl = params[PIPELINE_GIT_EVENT_URL]
             )
         }
 

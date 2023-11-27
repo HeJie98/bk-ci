@@ -48,6 +48,7 @@ import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_PUSH_BEFO
 import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_PUSH_OPERATION_KIND
 import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_PUSH_TOTAL_COMMIT
 import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_PUSH_USERNAME
+import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_PUSH_VERSION
 import com.tencent.devops.common.webhook.pojo.code.CI_BRANCH
 import com.tencent.devops.common.webhook.pojo.code.DELETE_EVENT
 import com.tencent.devops.common.webhook.pojo.code.PathFilterConfig
@@ -73,6 +74,7 @@ import com.tencent.devops.scm.utils.code.git.GitUtils
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
+import java.net.URI
 import java.util.Date
 
 @CodeWebhookHandler
@@ -221,6 +223,7 @@ class TGitPushTriggerHandler(
         startParams[BK_REPO_GIT_WEBHOOK_PUSH_ACTION_KIND] = event.action_kind ?: ""
         startParams[BK_REPO_GIT_WEBHOOK_PUSH_OPERATION_KIND] = event.operation_kind ?: ""
         startParams[BK_REPO_GIT_WEBHOOK_BRANCH] = getBranchName(event)
+        startParams[BK_REPO_GIT_WEBHOOK_PUSH_VERSION] = getRevision(event)
         startParams.putAll(WebhookUtils.genCommitsParam(commits = event.commits ?: emptyList()))
 
         // 兼容stream变量

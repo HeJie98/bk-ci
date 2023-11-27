@@ -16,7 +16,19 @@ data class GitCommitReviewInfo constructor(
     @ApiModelProperty("提交信息")
     val commits: List<GitCrCommit>? = listOf(),
     @ApiModelProperty("状态")
-    val state: String
+    val state: String,
+    @ApiModelProperty("目标分支")
+    @JsonProperty("target_branch")
+    val targetBranch: String?,
+    @ApiModelProperty("目标commitSha")
+    @JsonProperty("target_commit")
+    val targetCommit: String?,
+    @ApiModelProperty("源分支")
+    @JsonProperty("source_branch")
+    val sourceBranch: String?,
+    @ApiModelProperty("源commitSha")
+    @JsonProperty("source_commit")
+    val sourceCommit: String?
 )
 
 @ApiModel("日常代码评审--提交信息")

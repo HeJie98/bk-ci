@@ -27,6 +27,8 @@
 
 package com.tencent.devops.process.pojo.code
 
+import com.tencent.devops.common.pipeline.enums.StartType
+import com.tencent.devops.common.service.utils.HomeHostUtil
 import io.swagger.annotations.ApiModelProperty
 
 data class WebhookInfo(
@@ -51,25 +53,52 @@ data class WebhookInfo(
     @ApiModelProperty("参考信息(commit_id,mr_id,tag,issue_id,review_id,note_id等)", required = true)
     val refId: String?,
     @ApiModelProperty("合并后commitId", required = false)
-    // 合并后commitId
     val webhookMergeCommitSha: String?,
     @ApiModelProperty("源分支", required = false)
-    // 源分支
     val webhookSourceBranch: String?,
-    // mr id
+    @ApiModelProperty("mr id", required = false)
     val mrId: String?,
-    // mr iid
+    @ApiModelProperty("mr iid", required = false)
     val mrIid: String?,
-    // mr url
+    @ApiModelProperty("mrUrl", required = false)
     val mrUrl: String?,
-    // webhook仓库授权用户
+    @ApiModelProperty("webhook仓库授权用户", required = false)
     val repoAuthUser: String?,
-    // tag 名称
+    @ApiModelProperty("tag 名称", required = false)
     val tagName: String?,
-    // issue iid,
+    @ApiModelProperty("issue iid", required = false)
     val issueIid: String?,
-    // note id
+    @ApiModelProperty("note id", required = false)
     val noteId: String?,
-    // review id
-    val reviewId: String?
-)
+    @ApiModelProperty("review id", required = false)
+    val reviewId: String?,
+    @ApiModelProperty("事件链接，webhook触发时使用", required = false)
+    val eventUrl: String?,
+    @ApiModelProperty("父流水线项目Id", required = false)
+    val parentProjectId: String?,
+    @ApiModelProperty("父流水线Id", required = false)
+    val parentPipelineId: String?,
+    @ApiModelProperty("父流水线构建Id", required = false)
+    val parentBuildId: String?,
+    @ApiModelProperty("父流水线插件Id", required = false)
+    val parentTaskId: String?,
+    @ApiModelProperty("父流水线名称", required = false)
+    val parentPipelineName: String? = "",
+    @ApiModelProperty("父流水线构建序号", required = false)
+    var parentPipelineBuildNum: String? = "",
+    @ApiModelProperty("启动类型", required = false)
+    val startType: String? = StartType.WEB_HOOK.name
+){
+    fun getLinkUrl() = when (startType) {
+        StartType.WEB_HOOK.name -> {
+            eventUrl
+        }
+
+        StartType.PIPELINE.name -> {
+            "${HomeHostUtil.innerServerHost()}/console" +
+                    "/pipeline/$parentBuildId/$parentPipelineId/detail/$parentBuildId/executeDetail"
+        }
+
+        else -> ""
+    }
+}

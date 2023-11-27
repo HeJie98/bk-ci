@@ -891,7 +891,8 @@ class PipelineRuntimeService @Autowired constructor(
 
         context.pipelineParamMap[PIPELINE_START_TASK_ID] =
             BuildParameters(PIPELINE_START_TASK_ID, context.firstTaskId, readOnly = true)
-
+        // 填充父流水线信息
+        fillParentPipelineBuildInfo(context)
         val modelJson = JsonUtil.toJson(fullModel, formatted = false)
 
         if (buildHistoryRecord != null) {
@@ -1853,5 +1854,27 @@ class PipelineRuntimeService @Autowired constructor(
             buildId = buildId,
             buildParameters = buildParameters
         )
+    }
+
+    private fun fillParentPipelineBuildInfo(context: StartBuildContext) = with(context.webhookInfo) {
+        if (this != null &&
+            !parentProjectId.isNullOrBlank() &&
+            !parentPipelineId.isNullOrBlank() &&
+            !parentBuildId.isNullOrBlank()
+        ) {
+            logger.info("fill parent pipeline info|$parentProjectId|$parentPipelineId|$parentBuildId")
+            val pipelineInfo = pipelineInfoDao.getPipelineInfo(
+                dslContext,
+                projectId = parentProjectId!!,
+                pipelineId = parentPipelineId!!
+            )
+            val detail = pipelineBuildDao.getBuildInfo(
+                dslContext = dslContext,
+                projectId = parentProjectId!!,
+                buildId = parentPipelineBuildNum!!
+            )
+            this.parentPipelineBuildNum = detail?.buildNum.toString()
+            this.parentPipelineBuildNum = pipelineInfo?.pipelineName
+        }
     }
 }

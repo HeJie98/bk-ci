@@ -71,7 +71,11 @@ import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_PUSH_MODI
 import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_REVIEW_ID
 import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_REVIEW_IID
 import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_REVIEW_OWNER
+import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_REVIEW_SOURCE_BRANCH
+import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_REVIEW_SOURCE_COMMIT
 import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_REVIEW_STATE
+import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_REVIEW_TARGET_BRANCH
+import com.tencent.devops.common.webhook.pojo.code.BK_REPO_GIT_WEBHOOK_REVIEW_TARGET_COMMIT
 import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_MR_COMMITTER
 import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_MR_ID
 import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_SOURCE_BRANCH
@@ -341,6 +345,20 @@ object WebhookUtils {
         startParams[PIPELINE_BUILD_MSG] = gitCommitReviewInfo?.title ?: (gitMrInfo?.title ?: I18nUtil.getCodeLanMessage(
             CommonMessageCode.BK_CODE_BASE_TRIGGERING
         ))
+        gitMrInfo?.run {
+            startParams[BK_REPO_GIT_WEBHOOK_REVIEW_SOURCE_BRANCH] = this.sourceBranch ?: ""
+            startParams[BK_REPO_GIT_WEBHOOK_REVIEW_TARGET_BRANCH] = this.targetBranch ?: ""
+            startParams[BK_REPO_GIT_WEBHOOK_REVIEW_TARGET_COMMIT] = this.targetCommit ?: ""
+            startParams[BK_REPO_GIT_WEBHOOK_REVIEW_SOURCE_COMMIT] = this.sourceCommit ?: ""
+        }
+
+        gitCommitReviewInfo?.run {
+            startParams[BK_REPO_GIT_WEBHOOK_REVIEW_SOURCE_BRANCH] = this.sourceBranch ?: ""
+            startParams[BK_REPO_GIT_WEBHOOK_REVIEW_TARGET_BRANCH] = this.targetBranch ?: ""
+            startParams[BK_REPO_GIT_WEBHOOK_REVIEW_TARGET_COMMIT] = this.targetCommit ?: ""
+            startParams[BK_REPO_GIT_WEBHOOK_REVIEW_SOURCE_COMMIT] = this.sourceCommit ?: ""
+        }
+
         return startParams
     }
 }
