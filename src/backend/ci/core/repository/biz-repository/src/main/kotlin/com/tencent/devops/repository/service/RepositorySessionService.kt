@@ -28,22 +28,25 @@
 package com.tencent.devops.repository.service
 
 import com.tencent.devops.common.api.enums.ScmType
+import com.tencent.devops.common.api.util.SecurityUtil.decrypt
+import com.tencent.devops.common.api.util.SecurityUtil.encrypt
 import com.tencent.devops.repository.dao.RepoSessionInfoDao
-import com.tencent.devops.repository.service.scm.GitService
-import com.tencent.devops.repository.service.scm.ScmService
 import com.tencent.devops.scm.pojo.GitSession
 import org.jooq.DSLContext
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 
 @Service
 @Suppress("ALL")
 class RepositorySessionService @Autowired constructor(
     private val repoSessionInfoDao: RepoSessionInfoDao,
-    private val dslContext: DSLContext,
-    private val scmService: ScmService
+    private val dslContext: DSLContext
 ) {
+
+    @Value("\${aes.git:#{null}}")
+    private val aesKey = ""
 
     companion object {
         private val logger = LoggerFactory.getLogger(RepositorySessionService::class.java)
@@ -58,7 +61,9 @@ class RepositorySessionService @Autowired constructor(
         repoSessionInfoDao.saveSessionInfo(
             dslContext = dslContext,
             scmType = scmType,
-            gitSession = sessionInfo
+            gitSession = sessionInfo.copy(
+                privateToken = encrypt(aesKey, sessionInfo.privateToken)
+            )
         )
     }
 
@@ -78,7 +83,7 @@ class RepositorySessionService @Autowired constructor(
                 id = "",
                 email = "",
                 username = this.userId,
-                privateToken = this.privateToken
+                privateToken = decrypt(aesKey, privateToken)
             )
         }
     }
