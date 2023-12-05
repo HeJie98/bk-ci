@@ -67,7 +67,6 @@ class RepositorySessionService @Autowired constructor(
         )
     }
 
-
     fun get(
         userId: String,
         scmType: ScmType

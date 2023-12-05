@@ -60,7 +60,6 @@ interface ServiceRepositorySessionResource {
         sessionInfo: GitSession
     ): Result<Boolean>
 
-
     @ApiOperation("获取代码库登录态信息")
     @POST
     @Path("/get")

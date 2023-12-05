@@ -29,10 +29,7 @@ package com.tencent.devops.repository.dao
 
 import com.tencent.devops.common.api.enums.ScmType
 import com.tencent.devops.model.repository.tables.TRepositorySessionInfo
-import com.tencent.devops.model.repository.tables.TRepositoryTgitToken
 import com.tencent.devops.model.repository.tables.records.TRepositorySessionInfoRecord
-import com.tencent.devops.model.repository.tables.records.TRepositoryTgitTokenRecord
-import com.tencent.devops.repository.pojo.oauth.GitToken
 import com.tencent.devops.scm.pojo.GitSession
 import org.jooq.DSLContext
 import org.springframework.stereotype.Repository
