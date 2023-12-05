@@ -419,4 +419,19 @@ interface ServiceScmResource {
     fun getSession(
         reposSessionRequest: RepoSessionRequest
     ): Result<GitSession?>
+
+    @ApiOperation("检查私人令牌")
+    @POST
+    @Path("checkPrivateToken")
+    fun checkPrivateToken(
+        @ApiParam("私人令牌", required = true)
+        @QueryParam("privateToken")
+        privateToken: String,
+        @ApiParam("代码库类型", required = true)
+        @QueryParam("scmType")
+        scmType: ScmType,
+        @ApiParam("代码库地址", required = true)
+        @QueryParam("repoUrl")
+        repoUrl: String
+    ): Result<Boolean>
 }

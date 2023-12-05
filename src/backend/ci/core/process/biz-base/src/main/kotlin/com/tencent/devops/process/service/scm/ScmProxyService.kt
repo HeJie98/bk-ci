@@ -45,6 +45,7 @@ import com.tencent.devops.process.utils.CredentialUtils
 import com.tencent.devops.repository.api.ServiceGithubResource
 import com.tencent.devops.repository.api.ServiceOauthResource
 import com.tencent.devops.repository.api.ServiceRepositoryResource
+import com.tencent.devops.repository.api.ServiceRepositorySessionResource
 import com.tencent.devops.repository.api.scm.ServiceScmOauthResource
 import com.tencent.devops.repository.api.scm.ServiceScmResource
 import com.tencent.devops.repository.pojo.CodeGitRepository
@@ -58,6 +59,7 @@ import com.tencent.devops.repository.pojo.GithubRepository
 import com.tencent.devops.repository.pojo.Repository
 import com.tencent.devops.repository.pojo.enums.RepoAuthType
 import com.tencent.devops.scm.code.git.CodeGitWebhookEvent
+import com.tencent.devops.scm.pojo.GitSession
 import com.tencent.devops.scm.pojo.RepoSessionRequest
 import com.tencent.devops.scm.pojo.RevisionInfo
 import com.tencent.devops.ticket.api.ServiceCredentialResource
@@ -712,14 +714,11 @@ class ScmProxyService @Autowired constructor(private val client: Client) {
             (credential.credentialType == CredentialType.USERNAME_PASSWORD)
         ) {
             // USERNAME_PASSWORD v1 = username, v2 = password
-            val session = client.get(ServiceScmResource::class).getSession(
-                RepoSessionRequest(
-                    type = repository.getScmType(),
-                    username = privateKey,
-                    password = passPhrase,
-                    url = repository.url
-                )
-            ).data
+            val session = getSession(
+                username = privateKey,
+                password = passPhrase,
+                repository = repository
+            )
             return Credential(
                 username = privateKey,
                 privateKey = session?.privateToken ?: "",
@@ -751,5 +750,57 @@ class ScmProxyService @Autowired constructor(private val client: Client) {
         val accessToken = client.get(ServiceGithubResource::class).getAccessToken(userName).data
             ?: throw NotFoundException("cannot find github oauth accessToekn for user($userName)")
         return accessToken.accessToken
+    }
+
+    private fun getSession(repository: Repository, username: String, password: String): GitSession? {
+        logger.info("start get repository session info|username[$username]|repository[$repository]")
+        var sessionInfo = client.get(ServiceRepositorySessionResource::class).get(
+            userId = username,
+            scmType = repository.getScmType()
+        ).data
+        val valid = when {
+            sessionInfo == null -> false
+            else -> {
+                try {
+                    client.get(ServiceScmResource::class).checkPrivateToken(
+                        scmType = repository.getScmType(),
+                        repoUrl = repository.url,
+                        privateToken = sessionInfo.privateToken
+                    ).data ?: false
+                } catch (ignored: Exception) {
+                    logger.warn("fail to check token", ignored)
+                    false
+                }
+            }
+        }
+        if (!valid) {
+            logger.info("User session info is unavailable,try to retrieve again.")
+            sessionInfo = try {
+                client.get(ServiceScmResource::class).getSession(
+                    RepoSessionRequest(
+                        type = repository.getScmType(),
+                        username = username,
+                        password = password,
+                        url = repository.url
+                    )
+                ).data
+            } catch (ignored: Exception) {
+                logger.warn("fail to get session info", ignored)
+                null
+            }
+            // 更新登录态信息
+            sessionInfo?.run {
+                try {
+                    client.get(ServiceRepositorySessionResource::class).save(
+                        userId = username,
+                        scmType = repository.getScmType(),
+                        sessionInfo = sessionInfo
+                    )
+                } catch (ignored: Exception) {
+                    logger.warn("fail to save session info", ignored)
+                }
+            }
+        }
+        return sessionInfo
     }
 }

@@ -55,12 +55,14 @@ import com.tencent.devops.repository.pojo.git.GitOperationFile
 import com.tencent.devops.repository.pojo.oauth.GitToken
 import com.tencent.devops.repository.service.github.IGithubService
 import com.tencent.devops.repository.service.scm.IGitService
+import com.tencent.devops.repository.service.scm.IScmService
 import com.tencent.devops.repository.service.scm.Ip4Service
 import com.tencent.devops.repository.utils.Credential
 import com.tencent.devops.repository.utils.CredentialUtils
 import com.tencent.devops.repository.utils.RepositoryUtils
 import com.tencent.devops.scm.code.svn.ISvnService
 import com.tencent.devops.scm.pojo.DownloadGitRepoFileRequest
+import com.tencent.devops.scm.pojo.GitSession
 import com.tencent.devops.scm.pojo.RepoSessionRequest
 import com.tencent.devops.scm.utils.code.svn.SvnUtils
 import com.tencent.devops.ticket.api.ServiceCredentialResource
@@ -85,7 +87,9 @@ class RepoFileService @Autowired constructor(
     private val githubService: IGithubService,
     private val gitService: IGitService,
     private val svnService: ISvnService,
-    private val p4Service: Ip4Service
+    private val p4Service: Ip4Service,
+    private val repositorySessionService: RepositorySessionService,
+    private val scmService: IScmService
 ) {
 
     companion object {
@@ -512,14 +516,11 @@ class RepoFileService @Autowired constructor(
             (credential.credentialType == CredentialType.USERNAME_PASSWORD)
         ) {
             // USERNAME_PASSWORD v1 = username, v2 = password
-            val session = client.get(ServiceScmResource::class).getSession(
-                RepoSessionRequest(
-                    type = repository.getScmType(),
-                    username = privateKey,
-                    password = passPhrase,
-                    url = repository.url
-                )
-            ).data
+            val session = getSession(
+                repository = repository,
+                username = privateKey,
+                password = passPhrase
+            )
             return Credential(
                 username = privateKey,
                 privateKey = session?.privateToken ?: "",
@@ -533,5 +534,56 @@ class RepoFileService @Autowired constructor(
             listOf(privateKey, passPhrase)
         }
         return CredentialUtils.getCredential(repository, list, credential.credentialType)
+    }
+
+    private fun getSession(
+        repository: Repository,
+        username: String,
+        password: String
+    ): GitSession? {
+        logger.info("start get repository session info|username[$username]|repository[$repository]")
+        var sessionInfo = repositorySessionService.get(
+            userId = username,
+            scmType = repository.getScmType()
+        )
+        val valid = when {
+            sessionInfo == null -> false
+            else -> {
+                try {
+                    scmService.checkPrivateToken(
+                        scmType = repository.getScmType(),
+                        url = repository.url,
+                        privateToken = sessionInfo.privateToken
+                    )
+                } catch (ignored: Exception) {
+                    logger.warn("fail to check token, try to retrieve again.", ignored)
+                    false
+                }
+            }
+        }
+        if (!valid) {
+            sessionInfo = try {
+                client.get(ServiceScmResource::class).getSession(
+                    RepoSessionRequest(
+                        type = repository.getScmType(),
+                        username = username,
+                        password = password,
+                        url = repository.url
+                    )
+                ).data
+            } catch (ignored: Exception) {
+                logger.warn("fail to get session info", ignored)
+                null
+            }
+            // 更新登录态信息
+            if (sessionInfo != null) {
+                repositorySessionService.save(
+                    userId = username,
+                    scmType = repository.getScmType(),
+                    sessionInfo = sessionInfo
+                )
+            }
+        }
+        return sessionInfo
     }
 }

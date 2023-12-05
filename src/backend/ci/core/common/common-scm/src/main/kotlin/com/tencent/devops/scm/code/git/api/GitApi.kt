@@ -54,6 +54,7 @@ import com.tencent.devops.scm.pojo.GitMrInfo
 import com.tencent.devops.scm.pojo.GitMrReviewInfo
 import com.tencent.devops.scm.pojo.GitProjectInfo
 import com.tencent.devops.scm.pojo.GitSession
+import com.tencent.devops.scm.pojo.GitUserInfo
 import com.tencent.devops.scm.pojo.TapdWorkItem
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tag
@@ -683,5 +684,15 @@ open class GitApi {
             return null
         }
         return JsonUtil.getObjectMapper().readValue(responseBody)
+    }
+
+    fun getGitUserInfo(host: String, token: String, url: String): GitUserInfo? {
+        val request = get(host, token, url, page = "")
+        return JsonUtil.getObjectMapper().readValue(
+            getBody(
+                getMessageByLocale(CommonMessageCode.GET_USER_INFO),
+                request
+            )
+        )
     }
 }

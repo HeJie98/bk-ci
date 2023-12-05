@@ -350,6 +350,21 @@ class ServiceScmResourceImpl @Autowired constructor(private val scmService: IScm
         }
     }
 
+    override fun checkPrivateToken(privateToken: String, scmType: ScmType, repoUrl: String): Result<Boolean> {
+        val result = try {
+            scmService.checkPrivateToken(
+                scmType = scmType,
+                privateToken = privateToken,
+                url = repoUrl
+            )
+            true
+        } catch (ignored: Exception) {
+            logger.warn("fail to check private token|scmType[$scmType]|repoUrl[$repoUrl]")
+            false
+        }
+        return Result(result)
+    }
+
     companion object {
         private val logger = LoggerFactory.getLogger(ServiceScmResourceImpl::class.java)
     }

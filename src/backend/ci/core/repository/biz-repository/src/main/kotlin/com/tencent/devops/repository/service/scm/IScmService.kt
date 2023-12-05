@@ -271,4 +271,10 @@ interface IScmService {
         password: String,
         url: String
     ): GitSession?
+
+    fun checkPrivateToken(
+        scmType: ScmType,
+        privateToken: String?,
+        url: String
+    ): Boolean
 }

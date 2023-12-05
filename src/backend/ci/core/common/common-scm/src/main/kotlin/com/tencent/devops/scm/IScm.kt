@@ -98,4 +98,6 @@ interface IScm {
     fun getCommitReviewInfo(crId: Long): GitCommitReviewInfo? = null
 
     fun getGitSession(): GitSession? = null
+
+    fun checkToken(): Boolean = false
 }

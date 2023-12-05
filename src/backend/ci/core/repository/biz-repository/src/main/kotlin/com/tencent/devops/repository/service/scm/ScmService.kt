@@ -695,6 +695,20 @@ class ScmService @Autowired constructor(
         ).getGitSession()
     }
 
+    override fun checkPrivateToken(scmType: ScmType, privateToken: String?, url: String): Boolean {
+        return ScmFactory.getScm(
+            projectName = "",
+            url = url,
+            type = scmType,
+            branchName = null,
+            privateKey = privateToken,
+            passPhrase = "",
+            token = "",
+            region = null,
+            userName = null
+        ).checkToken()
+    }
+
     companion object {
         private val logger = LoggerFactory.getLogger(ScmService::class.java)
     }

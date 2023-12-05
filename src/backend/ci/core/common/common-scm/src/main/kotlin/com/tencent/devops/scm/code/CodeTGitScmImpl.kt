@@ -312,6 +312,16 @@ class CodeTGitScmImpl constructor(
         )
     }
 
+    override fun checkToken(): Boolean {
+        return try {
+            gitApi.getGitUserInfo(host = apiUrl, url = "user", token = token)
+            true
+        } catch (ignored: Exception) {
+            logger.warn("Fail to get user info", ignored)
+            false
+        }
+    }
+
     companion object {
         private val logger = LoggerFactory.getLogger(CodeTGitScmImpl::class.java)
     }
