@@ -71,7 +71,7 @@ class RepositorySessionService @Autowired constructor(
         userId: String,
         scmType: ScmType
     ): GitSession? {
-        logger.info("save session info|userId:$userId|scmType:$scmType")
+        logger.info("get session info|userId:$userId|scmType:$scmType")
         val sessionInfo = repoSessionInfoDao.getSessionInfo(
             dslContext = dslContext,
             scmType = scmType,
@@ -81,7 +81,7 @@ class RepositorySessionService @Autowired constructor(
             GitSession(
                 id = "",
                 email = "",
-                username = this.userId,
+                username = authUserName,
                 privateToken = decrypt(aesKey, privateToken)
             )
         }
