@@ -28,13 +28,18 @@
 
 package com.tencent.devops.auth.provider.rbac.service
 
+import com.tencent.bk.sdk.iam.constants.ManagerScopesEnum
 import com.tencent.bk.sdk.iam.dto.InstancesDTO
 import com.tencent.bk.sdk.iam.dto.V2PageInfoDTO
 import com.tencent.bk.sdk.iam.dto.manager.ManagerRoleGroup
 import com.tencent.bk.sdk.iam.dto.manager.dto.ManagerRoleGroupDTO
 import com.tencent.bk.sdk.iam.dto.manager.dto.SearchGroupDTO
+import com.tencent.bk.sdk.iam.dto.response.MemberGroupDetailsResponse
 import com.tencent.bk.sdk.iam.service.v2.V2ManagerService
 import com.tencent.devops.auth.constant.AuthI18nConstants
+import com.tencent.devops.auth.constant.AuthI18nConstants.BK_MEMBER_EXPIRED_AT_DISPLAY_EXPIRED
+import com.tencent.devops.auth.constant.AuthI18nConstants.BK_MEMBER_EXPIRED_AT_DISPLAY_NORMAL
+import com.tencent.devops.auth.constant.AuthI18nConstants.BK_MEMBER_EXPIRED_AT_DISPLAY_PERMANENT
 import com.tencent.devops.auth.constant.AuthMessageCode
 import com.tencent.devops.auth.constant.AuthMessageCode.AUTH_GROUP_MEMBER_EXPIRED_DESC
 import com.tencent.devops.auth.constant.AuthMessageCode.ERROR_DEFAULT_GROUP_DELETE_FAIL
@@ -44,10 +49,15 @@ import com.tencent.devops.auth.constant.AuthMessageCode.ERROR_GROUP_NAME_TO_SHOR
 import com.tencent.devops.auth.constant.AuthMessageCode.GROUP_EXIST
 import com.tencent.devops.auth.dao.AuthResourceGroupConfigDao
 import com.tencent.devops.auth.dao.AuthResourceGroupDao
+import com.tencent.devops.auth.dao.AuthResourceGroupMemberDao
 import com.tencent.devops.auth.pojo.RelatedResourceInfo
 import com.tencent.devops.auth.pojo.dto.GroupAddDTO
+import com.tencent.devops.auth.pojo.dto.ListGroupConditionDTO
 import com.tencent.devops.auth.pojo.dto.RenameGroupDTO
 import com.tencent.devops.auth.pojo.enum.GroupMemberStatus
+import com.tencent.devops.auth.pojo.enum.OperateSource
+import com.tencent.devops.auth.pojo.enum.RemoveMemberButtonControl
+import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.GroupPermissionDetailVo
 import com.tencent.devops.auth.pojo.vo.IamGroupInfoVo
 import com.tencent.devops.auth.pojo.vo.IamGroupMemberInfoVo
@@ -55,31 +65,38 @@ import com.tencent.devops.auth.pojo.vo.IamGroupPoliciesVo
 import com.tencent.devops.auth.service.AuthMonitorSpaceService
 import com.tencent.devops.auth.service.iam.PermissionProjectService
 import com.tencent.devops.auth.service.iam.PermissionResourceGroupService
+import com.tencent.devops.auth.service.iam.PermissionResourceMemberService
 import com.tencent.devops.common.api.exception.ErrorCodeException
 import com.tencent.devops.common.api.exception.PermissionForbiddenException
+import com.tencent.devops.common.api.model.SQLPage
 import com.tencent.devops.common.api.pojo.Pagination
 import com.tencent.devops.common.api.util.DateTimeUtil
+import com.tencent.devops.common.api.util.MessageUtil
 import com.tencent.devops.common.api.util.PageUtil
 import com.tencent.devops.common.auth.api.AuthResourceType
 import com.tencent.devops.common.web.utils.I18nUtil
 import org.jooq.DSLContext
+import org.jooq.impl.DSL
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
+import java.util.concurrent.TimeUnit
 
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "IMPLICIT_CAST_TO_ANY")
 class RbacPermissionResourceGroupService @Autowired constructor(
     private val iamV2ManagerService: V2ManagerService,
     private val authResourceService: AuthResourceService,
     private val permissionSubsetManagerService: PermissionSubsetManagerService,
     private val permissionProjectService: PermissionProjectService,
     private val permissionGroupPoliciesService: PermissionGroupPoliciesService,
+    private val permissionResourceMemberService: PermissionResourceMemberService,
     private val dslContext: DSLContext,
     private val authResourceGroupDao: AuthResourceGroupDao,
     private val v2ManagerService: V2ManagerService,
     private val rbacCacheService: RbacCacheService,
     private val monitorSpaceService: AuthMonitorSpaceService,
-    private val authResourceGroupConfigDao: AuthResourceGroupConfigDao
+    private val authResourceGroupConfigDao: AuthResourceGroupConfigDao,
+    private val authResourceGroupMemberDao: AuthResourceGroupMemberDao
 ) : PermissionResourceGroupService {
     @Value("\${auth.iamSystem:}")
     private val systemId = ""
@@ -94,76 +111,121 @@ class RbacPermissionResourceGroupService @Autowired constructor(
         private val logger = LoggerFactory.getLogger(RbacPermissionResourceGroupService::class.java)
         private const val MAX_GROUP_NAME_LENGTH = 32
         private const val MIN_GROUP_NAME_LENGTH = 5
+        private const val FIRST_PAGE = 1
+
+        // 永久过期时间
+        private const val PERMANENT_EXPIRED_TIME = 4102444800000L
 
         // 毫秒转换
         private const val MILLISECOND = 1000
     }
 
     override fun listGroup(
-        projectId: String,
-        resourceType: String,
-        resourceCode: String,
-        page: Int,
-        pageSize: Int
+        userId: String,
+        listGroupConditionDTO: ListGroupConditionDTO
     ): Pagination<IamGroupInfoVo> {
-        val resourceInfo = authResourceService.get(
-            projectCode = projectId,
-            resourceType = resourceType,
-            resourceCode = resourceCode
-        )
-        val validPage = PageUtil.getValidPage(page)
-        val validPageSize = PageUtil.getValidPageSize(pageSize)
-        val iamGroupInfoList = if (resourceType == AuthResourceType.PROJECT.value) {
-            val searchGroupDTO = SearchGroupDTO.builder().inherit(false).build()
-            val pageInfoDTO = V2PageInfoDTO()
-            pageInfoDTO.page = page
-            pageInfoDTO.pageSize = pageSize
-            val iamGroupInfoList = iamV2ManagerService.getGradeManagerRoleGroupV2(
-                resourceInfo.relationId,
-                searchGroupDTO,
-                pageInfoDTO
+        with(listGroupConditionDTO) {
+            val resourceInfo = authResourceService.get(
+                projectCode = projectId,
+                resourceType = resourceType,
+                resourceCode = resourceCode
             )
-            iamGroupInfoList.results
-        } else {
-            permissionSubsetManagerService.listGroup(
-                subsetManagerId = resourceInfo.relationId,
-                page = validPage,
-                pageSize = validPageSize
+            val validPage = PageUtil.getValidPage(page)
+            val validPageSize = PageUtil.getValidPageSize(pageSize)
+            val iamGroupInfoList = if (resourceType == AuthResourceType.PROJECT.value) {
+                val searchGroupDTO = SearchGroupDTO.builder().inherit(false).build()
+                val pageInfoDTO = V2PageInfoDTO()
+                pageInfoDTO.page = page
+                pageInfoDTO.pageSize = pageSize
+                val iamGroupInfoList = iamV2ManagerService.getGradeManagerRoleGroupV2(
+                    resourceInfo.relationId,
+                    searchGroupDTO,
+                    pageInfoDTO
+                )
+                iamGroupInfoList.results
+            } else {
+                permissionSubsetManagerService.listGroup(
+                    subsetManagerId = resourceInfo.relationId,
+                    page = validPage,
+                    pageSize = validPageSize
+                )
+            }
+            val resourceGroupMap = authResourceGroupDao.getByResourceCode(
+                dslContext = dslContext,
+                projectCode = projectId,
+                resourceType = resourceType,
+                resourceCode = resourceCode
+            ).associateBy { it.relationId.toInt() }
+            val iamGroupInfoVoList = iamGroupInfoList.map {
+                val resourceGroup = resourceGroupMap[it.id]
+                val defaultGroup = resourceGroup?.defaultGroup ?: false
+                // 默认组名需要支持国际化
+                val groupName = if (defaultGroup) {
+                    I18nUtil.getCodeLanMessage(
+                        messageCode = "${resourceGroup!!.resourceType}.${resourceGroup.groupCode}" +
+                            AuthI18nConstants.AUTH_RESOURCE_GROUP_CONFIG_GROUP_NAME_SUFFIX,
+                        defaultMessage = resourceGroup.groupName
+                    )
+                } else {
+                    it.name
+                }
+                IamGroupInfoVo(
+                    managerId = resourceInfo.relationId.toInt(),
+                    defaultGroup = defaultGroup,
+                    groupId = it.id,
+                    name = groupName,
+                    displayName = it.name,
+                    userCount = it.userCount,
+                    departmentCount = it.departmentCount
+                )
+            }.toMutableList().plusAllProjectMemberGroup(
+                userId = userId,
+                managerId = resourceInfo.relationId.toInt(),
+                condition = listGroupConditionDTO
+            ).sortedBy { it.groupId }
+            return Pagination(
+                hasNext = iamGroupInfoVoList.size == pageSize,
+                records = iamGroupInfoVoList
             )
         }
-        val resourceGroupMap = authResourceGroupDao.getByResourceCode(
-            dslContext = dslContext,
-            projectCode = projectId,
-            resourceType = resourceType,
-            resourceCode = resourceCode
-        ).associateBy { it.relationId.toInt() }
-        val iamGroupInfoVoList = iamGroupInfoList.map {
-            val resourceGroup = resourceGroupMap[it.id]
-            val defaultGroup = resourceGroup?.defaultGroup ?: false
-            // 默认组名需要支持国际化
-            val groupName = if (defaultGroup) {
-                I18nUtil.getCodeLanMessage(
-                    messageCode = "${resourceGroup!!.resourceType}.${resourceGroup.groupCode}" +
-                        AuthI18nConstants.AUTH_RESOURCE_GROUP_CONFIG_GROUP_NAME_SUFFIX,
-                    defaultMessage = resourceGroup.groupName
-                )
-            } else {
-                it.name
-            }
-            IamGroupInfoVo(
-                managerId = resourceInfo.relationId.toInt(),
-                defaultGroup = defaultGroup,
-                groupId = it.id,
-                name = groupName,
-                displayName = it.name,
-                userCount = it.userCount,
-                departmentCount = it.departmentCount
+    }
+
+    private fun MutableList<IamGroupInfoVo>.plusAllProjectMemberGroup(
+        userId: String,
+        managerId: Int,
+        condition: ListGroupConditionDTO
+    ): List<IamGroupInfoVo> {
+        val shouldPlusAllProjectMemberGroup =
+            condition.page == FIRST_PAGE &&
+                condition.resourceType == AuthResourceType.PROJECT.value &&
+                condition.getAllProjectMembersGroup
+
+        if (shouldPlusAllProjectMemberGroup) {
+            val resourceMemberCount = permissionResourceMemberService.getResourceMemberCount(
+                projectCode = condition.projectId,
+                resourceType = AuthResourceType.PROJECT.value,
+                resourceCode = condition.projectId
             )
-        }.sortedBy { it.groupId }
-        return Pagination(
-            hasNext = iamGroupInfoVoList.size == pageSize,
-            records = iamGroupInfoVoList
-        )
+            // 从数据库中获取数据
+            val allProjectMemberGroup = IamGroupInfoVo(
+                managerId = managerId,
+                defaultGroup = true,
+                groupId = 0,
+                name = MessageUtil.getMessageByLocale(
+                    AuthI18nConstants.BK_ALL_PROJECT_MEMBERS_GROUP,
+                    I18nUtil.getLanguage(userId)
+                ),
+                displayName = MessageUtil.getMessageByLocale(
+                    AuthI18nConstants.BK_ALL_PROJECT_MEMBERS_GROUP,
+                    I18nUtil.getLanguage(userId)
+                ),
+                userCount = resourceMemberCount.userCount,
+                departmentCount = resourceMemberCount.departmentCount,
+                projectMemberGroup = true
+            )
+            this.add(0, allProjectMemberGroup)
+        }
+        return this
     }
 
     override fun listUserBelongGroup(
@@ -199,8 +261,7 @@ class RbacPermissionResourceGroupService @Autowired constructor(
                     Pair(
                         GroupMemberStatus.EXPIRED.name,
                         I18nUtil.getCodeLanMessage(
-                            AUTH_GROUP_MEMBER_EXPIRED_DESC,
-                            "expired"
+                            AUTH_GROUP_MEMBER_EXPIRED_DESC
                         )
                     )
                 } else {
@@ -273,10 +334,18 @@ class RbacPermissionResourceGroupService @Autowired constructor(
         iamV2ManagerService.deleteRoleGroupV2(groupId)
         // 迁移的用户组,非默认的也会保存,删除时也应该删除
         if (authResourceGroup != null) {
-            authResourceGroupDao.deleteByIds(
-                dslContext = dslContext,
-                ids = listOf(authResourceGroup.id)
-            )
+            dslContext.transaction { configuration ->
+                val context = DSL.using(configuration)
+                authResourceGroupDao.deleteByIds(
+                    dslContext = context,
+                    ids = listOf(authResourceGroup.id)
+                )
+                authResourceGroupMemberDao.deleteByIamGroupId(
+                    dslContext = context,
+                    projectCode = projectId,
+                    iamGroupId = groupId
+                )
+            }
         }
         return true
     }
@@ -478,6 +547,146 @@ class RbacPermissionResourceGroupService @Autowired constructor(
             iamGroupId = iamGroupId
         )
         return true
+    }
+
+    override fun getMemberGroupsDetails(
+        projectId: String,
+        resourceType: String,
+        memberId: String,
+        start: Int,
+        limit: Int
+    ): SQLPage<GroupDetailsInfoVo> {
+        // 查询项目下包含该成员的组列表
+        val projectGroupIds = authResourceGroupMemberDao.listResourceGroupMember(
+            dslContext = dslContext,
+            projectCode = projectId,
+            resourceType = AuthResourceType.PROJECT.value,
+            memberId = memberId
+        ).map { it.iamGroupId.toString() }
+        // 通过项目组ID获取人员模板ID
+        val iamTemplateId = authResourceGroupDao.listByRelationId(
+            dslContext = dslContext,
+            projectCode = projectId,
+            iamGroupIds = projectGroupIds
+        ).filter { it.iamTemplateId != null }
+            .map { it.iamTemplateId.toString() }
+        // 查询成员所在资源用户组列表
+        val count = authResourceGroupMemberDao.countMemberGroup(
+            dslContext = dslContext,
+            projectCode = projectId,
+            memberId = memberId,
+            iamTemplateIds = iamTemplateId,
+            resourceType = resourceType
+        )[resourceType] ?: 0L
+        val resourceGroupMembers = authResourceGroupMemberDao.listMemberGroupDetail(
+            dslContext = dslContext,
+            projectCode = projectId,
+            memberId = memberId,
+            iamTemplateIds = iamTemplateId,
+            resourceType = resourceType,
+            offset = start,
+            limit = limit
+        )
+        val resourceGroupMap = authResourceGroupDao.listByRelationId(
+            dslContext = dslContext,
+            projectCode = projectId,
+            iamGroupIds = resourceGroupMembers.map { it.iamGroupId.toString() }
+        ).associateBy { it.relationId }
+        // 只有一个成员的管理员组
+        val uniqueManagerGroups = authResourceGroupMemberDao.listProjectUniqueManagerGroups(
+            dslContext = dslContext,
+            projectCode = projectId,
+            iamGroupIds = resourceGroupMembers.map { it.iamGroupId }
+        )
+
+        // 用户组成员详情
+        val groupMemberDetailMap = mutableMapOf<String, MemberGroupDetailsResponse>()
+        // 直接加入的用户
+        val userGroupIds = resourceGroupMembers
+            .filter { it.memberType == ManagerScopesEnum.getType(ManagerScopesEnum.USER) }
+            .map { it.iamGroupId }
+        if (userGroupIds.isNotEmpty()) {
+            v2ManagerService.listMemberGroupsDetails(
+                ManagerScopesEnum.getType(ManagerScopesEnum.USER),
+                memberId,
+                userGroupIds.joinToString(",")
+            ).forEach {
+                groupMemberDetailMap["${it.id}_$memberId"] = it
+            }
+        }
+
+        // 直接加入的组织
+        val deptGroupIds = resourceGroupMembers
+            .filter { it.memberType == ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT) }
+            .map { it.iamGroupId }
+        if (deptGroupIds.isNotEmpty()) {
+            v2ManagerService.listMemberGroupsDetails(
+                ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT),
+                memberId,
+                userGroupIds.joinToString(",")
+            ).forEach {
+                groupMemberDetailMap["${it.id}_$memberId"] = it
+            }
+        }
+
+        // 人员模板加入的组
+        resourceGroupMembers.filter { it.memberType == ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE) }
+            .groupBy({ it.memberId }, { it.iamGroupId.toString() })
+            .forEach { (iamTemplateId, iamGroupIds) ->
+                if (iamGroupIds.isEmpty()) return@forEach
+                v2ManagerService.listMemberGroupsDetails(
+                    ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE),
+                    iamTemplateId,
+                    iamGroupIds.joinToString(",")
+                ).forEach {
+                    groupMemberDetailMap["${it.id}_$iamTemplateId"] = it
+                }
+            }
+
+        val records = resourceGroupMembers.map {
+            val resourceGroup = resourceGroupMap[it.iamGroupId.toString()]!!
+            val groupMemberDetail = groupMemberDetailMap["${it.iamGroupId}_${it.memberId}"]!!
+            val expiredAt = TimeUnit.SECONDS.toMillis(groupMemberDetail.expiredAt)
+            val between = expiredAt - System.currentTimeMillis()
+            GroupDetailsInfoVo(
+                resourceCode = resourceGroup.resourceCode,
+                resourceName = resourceGroup.resourceName,
+                resourceType = resourceGroup.resourceType,
+                groupId = resourceGroup.relationId.toInt(),
+                groupName = resourceGroup.groupName,
+                groupDesc = resourceGroup.description,
+                expiredAtDisplay = when {
+                    expiredAt == PERMANENT_EXPIRED_TIME ->
+                        I18nUtil.getCodeLanMessage(messageCode = BK_MEMBER_EXPIRED_AT_DISPLAY_PERMANENT)
+
+                    between >= 0 -> I18nUtil.getCodeLanMessage(
+                        messageCode = BK_MEMBER_EXPIRED_AT_DISPLAY_NORMAL,
+                        params = arrayOf(DateTimeUtil.formatDay(between))
+                    )
+
+                    else -> I18nUtil.getCodeLanMessage(
+                        messageCode = BK_MEMBER_EXPIRED_AT_DISPLAY_EXPIRED
+                    )
+                },
+                expiredAt = expiredAt,
+                joinedTime = TimeUnit.SECONDS.toMillis(groupMemberDetail.createdAt),
+                removeMemberButtonControl = when {
+                    it.memberType == ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE) ->
+                        RemoveMemberButtonControl.TEMPLATE
+
+                    resourceGroup.resourceType == AuthResourceType.PROJECT.value &&
+                            uniqueManagerGroups.contains(it.iamGroupId) -> RemoveMemberButtonControl.UNIQUE_MANAGER
+
+                    uniqueManagerGroups.contains(it.iamGroupId) -> RemoveMemberButtonControl.UNIQUE_OWNER
+
+                    else ->
+                        RemoveMemberButtonControl.OTHER
+                },
+                operateSource = OperateSource.API,
+                operator = ""
+            )
+        }
+        return SQLPage(count = count, records = records)
     }
 
     private fun getGroupPermissionDetailBySystem(iamSystemId: String, groupId: Int): List<GroupPermissionDetailVo> {

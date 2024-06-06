@@ -30,6 +30,7 @@ package com.tencent.devops.auth.resources
 
 import com.tencent.devops.auth.api.user.UserAuthResourceResource
 import com.tencent.devops.auth.pojo.AuthResourceInfo
+import com.tencent.devops.auth.pojo.dto.ListGroupConditionDTO
 import com.tencent.devops.auth.pojo.vo.IamGroupInfoVo
 import com.tencent.devops.auth.pojo.vo.IamGroupMemberInfoVo
 import com.tencent.devops.auth.service.iam.PermissionResourceGroupService
@@ -86,11 +87,15 @@ class UserAuthResourceResourceImpl @Autowired constructor(
     ): Result<Pagination<IamGroupInfoVo>> {
         return Result(
             permissionResourceGroupService.listGroup(
-                projectId = projectId,
-                resourceType = resourceType,
-                resourceCode = resourceCode,
-                page = page,
-                pageSize = pageSize
+                userId = userId,
+                ListGroupConditionDTO(
+                    projectId = projectId,
+                    resourceType = resourceType,
+                    resourceCode = resourceCode,
+                    getAllProjectMembersGroup = true,
+                    page = page,
+                    pageSize = pageSize
+                )
             )
         )
     }

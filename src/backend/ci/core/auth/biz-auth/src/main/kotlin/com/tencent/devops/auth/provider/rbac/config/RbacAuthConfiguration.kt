@@ -46,6 +46,7 @@ import com.tencent.devops.auth.dao.AuthMigrationDao
 import com.tencent.devops.auth.dao.AuthMonitorSpaceDao
 import com.tencent.devops.auth.dao.AuthResourceGroupConfigDao
 import com.tencent.devops.auth.dao.AuthResourceGroupDao
+import com.tencent.devops.auth.dao.AuthResourceGroupMemberDao
 import com.tencent.devops.auth.provider.rbac.service.AuthResourceCodeConverter
 import com.tencent.devops.auth.provider.rbac.service.AuthResourceService
 import com.tencent.devops.auth.provider.rbac.service.ItsmService
@@ -74,6 +75,7 @@ import com.tencent.devops.auth.provider.rbac.service.migrate.MigrateResultServic
 import com.tencent.devops.auth.provider.rbac.service.migrate.MigrateV0PolicyService
 import com.tencent.devops.auth.provider.rbac.service.migrate.MigrateV3PolicyService
 import com.tencent.devops.auth.provider.rbac.service.migrate.RbacPermissionMigrateService
+import com.tencent.devops.auth.provider.rbac.service.RbacPermissionResourceGroupSyncService
 import com.tencent.devops.auth.service.AuthMonitorSpaceService
 import com.tencent.devops.auth.service.AuthProjectUserMetricsService
 import com.tencent.devops.auth.service.AuthVerifyRecordService
@@ -167,24 +169,28 @@ class RbacAuthConfiguration {
         permissionSubsetManagerService: PermissionSubsetManagerService,
         permissionProjectService: PermissionProjectService,
         permissionGroupPoliciesService: PermissionGroupPoliciesService,
+        permissionResourceMemberService: PermissionResourceMemberService,
         authResourceGroupDao: AuthResourceGroupDao,
         dslContext: DSLContext,
         v2ManagerService: V2ManagerService,
         rbacCacheService: RbacCacheService,
         monitorSpaceService: AuthMonitorSpaceService,
-        authResourceGroupConfigDao: AuthResourceGroupConfigDao
+        authResourceGroupConfigDao: AuthResourceGroupConfigDao,
+        authResourceGroupMemberDao: AuthResourceGroupMemberDao
     ) = RbacPermissionResourceGroupService(
         iamV2ManagerService = iamV2ManagerService,
         authResourceService = authResourceService,
         permissionSubsetManagerService = permissionSubsetManagerService,
         permissionProjectService = permissionProjectService,
         permissionGroupPoliciesService = permissionGroupPoliciesService,
+        permissionResourceMemberService = permissionResourceMemberService,
         authResourceGroupDao = authResourceGroupDao,
         dslContext = dslContext,
         v2ManagerService = v2ManagerService,
         rbacCacheService = rbacCacheService,
         monitorSpaceService = monitorSpaceService,
-        authResourceGroupConfigDao = authResourceGroupConfigDao
+        authResourceGroupConfigDao = authResourceGroupConfigDao,
+        authResourceGroupMemberDao = authResourceGroupMemberDao
     )
 
     @Bean
@@ -192,14 +198,18 @@ class RbacAuthConfiguration {
         authResourceService: AuthResourceService,
         iamV2ManagerService: V2ManagerService,
         authResourceGroupDao: AuthResourceGroupDao,
+        authResourceGroupMemberDao: AuthResourceGroupMemberDao,
         dslContext: DSLContext,
-        deptService: DeptService
+        deptService: DeptService,
+        rbacCacheService: RbacCacheService
     ) = RbacPermissionResourceMemberService(
         authResourceService = authResourceService,
         iamV2ManagerService = iamV2ManagerService,
         authResourceGroupDao = authResourceGroupDao,
+        authResourceGroupMemberDao = authResourceGroupMemberDao,
         dslContext = dslContext,
-        deptService = deptService
+        deptService = deptService,
+        rbacCacheService = rbacCacheService
     )
 
     @Bean
@@ -532,5 +542,24 @@ class RbacAuthConfiguration {
         dslContext = dslContext,
         objectMapper = objectMapper,
         systemService = systemService
+    )
+
+    @Bean
+    fun permissionResourceGroupSyncService(
+        client: Client,
+        dslContext: DSLContext,
+        authResourceService: AuthResourceService,
+        authResourceGroupDao: AuthResourceGroupDao,
+        iamV2ManagerService: V2ManagerService,
+        authResourceGroupMemberDao: AuthResourceGroupMemberDao,
+        rbacCacheService: RbacCacheService
+    ) = RbacPermissionResourceGroupSyncService(
+        client = client,
+        dslContext = dslContext,
+        authResourceService = authResourceService,
+        authResourceGroupDao = authResourceGroupDao,
+        iamV2ManagerService = iamV2ManagerService,
+        authResourceGroupMemberDao = authResourceGroupMemberDao,
+        rbacCacheService = rbacCacheService
     )
 }

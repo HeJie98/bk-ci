@@ -12,6 +12,7 @@ import com.tencent.devops.auth.provider.sample.service.SamplePermissionGradeServ
 import com.tencent.devops.auth.provider.sample.service.SamplePermissionItsmCallbackService
 import com.tencent.devops.auth.provider.sample.service.SamplePermissionMigrateService
 import com.tencent.devops.auth.provider.sample.service.SamplePermissionResourceGroupService
+import com.tencent.devops.auth.provider.sample.service.SamplePermissionResourceGroupSyncService
 import com.tencent.devops.auth.provider.sample.service.SamplePermissionResourceMemberService
 import com.tencent.devops.auth.provider.sample.service.SamplePermissionResourceService
 import com.tencent.devops.auth.provider.sample.service.SamplePermissionResourceValidateService
@@ -33,6 +34,7 @@ import com.tencent.devops.auth.service.iam.PermissionItsmCallbackService
 import com.tencent.devops.auth.service.iam.PermissionMigrateService
 import com.tencent.devops.auth.service.iam.PermissionProjectService
 import com.tencent.devops.auth.service.iam.PermissionResourceGroupService
+import com.tencent.devops.auth.service.iam.PermissionResourceGroupSyncService
 import com.tencent.devops.auth.service.iam.PermissionResourceMemberService
 import com.tencent.devops.auth.service.iam.PermissionResourceService
 import com.tencent.devops.auth.service.iam.PermissionResourceValidateService
@@ -130,4 +132,8 @@ class MockAuthConfiguration {
     @Bean
     @ConditionalOnMissingBean(AuthMonitorSpaceService::class)
     fun sampleAuthMonitorSpaceService() = SampleAuthMonitorSpaceService()
+
+    @Bean
+    @ConditionalOnMissingBean(PermissionResourceGroupSyncService::class)
+    fun samplePermissionResourceGroupSyncService() = SamplePermissionResourceGroupSyncService()
 }

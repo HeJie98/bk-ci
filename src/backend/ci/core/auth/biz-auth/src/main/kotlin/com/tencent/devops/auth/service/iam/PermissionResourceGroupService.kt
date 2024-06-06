@@ -29,11 +29,14 @@
 package com.tencent.devops.auth.service.iam
 
 import com.tencent.devops.auth.pojo.dto.GroupAddDTO
+import com.tencent.devops.auth.pojo.dto.ListGroupConditionDTO
 import com.tencent.devops.auth.pojo.dto.RenameGroupDTO
+import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.GroupPermissionDetailVo
 import com.tencent.devops.auth.pojo.vo.IamGroupInfoVo
 import com.tencent.devops.auth.pojo.vo.IamGroupMemberInfoVo
 import com.tencent.devops.auth.pojo.vo.IamGroupPoliciesVo
+import com.tencent.devops.common.api.model.SQLPage
 import com.tencent.devops.common.api.pojo.Pagination
 
 interface PermissionResourceGroupService {
@@ -41,11 +44,8 @@ interface PermissionResourceGroupService {
      * 资源关联的组列表
      */
     fun listGroup(
-        projectId: String,
-        resourceType: String,
-        resourceCode: String,
-        page: Int,
-        pageSize: Int
+        userId: String,
+        listGroupConditionDTO: ListGroupConditionDTO
     ): Pagination<IamGroupInfoVo>
 
     /**
@@ -94,4 +94,12 @@ interface PermissionResourceGroupService {
         projectId: String,
         groupCode: String
     ): Boolean
+
+    fun getMemberGroupsDetails(
+        projectId: String,
+        resourceType: String,
+        memberId: String,
+        start: Int,
+        limit: Int
+    ): SQLPage<GroupDetailsInfoVo>
 }

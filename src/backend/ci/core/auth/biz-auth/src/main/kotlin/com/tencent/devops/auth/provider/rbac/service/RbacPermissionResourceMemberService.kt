@@ -8,29 +8,48 @@ import com.tencent.bk.sdk.iam.dto.manager.V2ManagerRoleGroupInfo
 import com.tencent.bk.sdk.iam.dto.manager.dto.GroupMemberRenewApplicationDTO
 import com.tencent.bk.sdk.iam.dto.manager.dto.ManagerMemberGroupDTO
 import com.tencent.bk.sdk.iam.dto.manager.dto.SearchGroupDTO
+import com.tencent.bk.sdk.iam.dto.response.MemberGroupDetailsResponse
 import com.tencent.bk.sdk.iam.service.v2.V2ManagerService
+import com.tencent.devops.auth.constant.AuthI18nConstants
 import com.tencent.devops.auth.constant.AuthMessageCode
 import com.tencent.devops.auth.dao.AuthResourceGroupDao
+import com.tencent.devops.auth.dao.AuthResourceGroupMemberDao
+import com.tencent.devops.auth.pojo.AuthResourceGroupMember
+import com.tencent.devops.auth.pojo.ResourceMemberInfo
 import com.tencent.devops.auth.pojo.dto.GroupMemberRenewalDTO
+import com.tencent.devops.auth.pojo.request.GroupMemberCommonConditionReq
+import com.tencent.devops.auth.pojo.request.GroupMemberHandoverConditionReq
+import com.tencent.devops.auth.pojo.request.GroupMemberRenewalConditionReq
+import com.tencent.devops.auth.pojo.request.RemoveMemberFromProjectReq
+import com.tencent.devops.auth.pojo.vo.MemberGroupCountWithPermissionsVo
+import com.tencent.devops.auth.pojo.vo.ResourceMemberCountVO
 import com.tencent.devops.auth.service.DeptService
 import com.tencent.devops.auth.service.iam.PermissionResourceMemberService
 import com.tencent.devops.common.api.exception.ErrorCodeException
+import com.tencent.devops.common.api.model.SQLPage
+import com.tencent.devops.common.api.util.DateTimeUtil
+import com.tencent.devops.common.api.util.PageUtil
 import com.tencent.devops.common.auth.api.AuthResourceType
 import com.tencent.devops.common.auth.api.pojo.BkAuthGroup
 import com.tencent.devops.common.auth.api.pojo.BkAuthGroupAndUserList
+import com.tencent.devops.common.web.utils.I18nUtil
 import com.tencent.devops.project.constant.ProjectMessageCode
 import org.apache.commons.lang3.RandomUtils
 import org.jooq.DSLContext
 import org.slf4j.LoggerFactory
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+@Suppress("SpreadOperator")
 class RbacPermissionResourceMemberService constructor(
     private val authResourceService: AuthResourceService,
     private val iamV2ManagerService: V2ManagerService,
     private val authResourceGroupDao: AuthResourceGroupDao,
+    private val authResourceGroupMemberDao: AuthResourceGroupMemberDao,
     private val dslContext: DSLContext,
-    private val deptService: DeptService
+    private val deptService: DeptService,
+    private val rbacCacheService: RbacCacheService
 ) : PermissionResourceMemberService {
     override fun getResourceGroupMembers(
         projectCode: String,
@@ -97,6 +116,155 @@ class RbacPermissionResourceMemberService constructor(
         }.map { it.get() }
     }
 
+    override fun getResourceMemberCount(
+        projectCode: String,
+        resourceType: String,
+        resourceCode: String
+    ): ResourceMemberCountVO {
+        if (resourceType == AuthResourceType.PROJECT.value) {
+            val projectMemberCount = authResourceGroupMemberDao.countProjectMember(
+                dslContext = dslContext,
+                projectCode = projectCode
+            )
+            // TODO 授权管理应该也需要补充
+            return ResourceMemberCountVO(
+                userCount = projectMemberCount[ManagerScopesEnum.getType(ManagerScopesEnum.USER)] ?: 0,
+                departmentCount = projectMemberCount[ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT)] ?: 0
+            )
+        }
+        return ResourceMemberCountVO(
+            userCount = 0,
+            departmentCount = 0
+        )
+    }
+
+    override fun listResourceMembers(
+        projectCode: String,
+        userName: String?,
+        deptName: String?,
+        page: Int,
+        pageSize: Int
+    ): SQLPage<ResourceMemberInfo> {
+        // TODO 需要补充搜索条件,部门和用户应该不能同时搜索
+        val count = authResourceGroupMemberDao.countResourceMember(
+            dslContext = dslContext,
+            projectCode = projectCode
+        )
+        val limit = PageUtil.convertPageSizeToSQLLimit(page, pageSize)
+        val records = authResourceGroupMemberDao.listResourceMember(
+            dslContext = dslContext,
+            projectCode = projectCode,
+            offset = limit.offset,
+            limit = limit.limit
+        )
+        return SQLPage(count = count, records = records)
+    }
+
+    override fun getMemberGroups(
+        projectCode: String,
+        resourceType: String,
+        member: String,
+        start: Int,
+        end: Int
+    ): List<Int> {
+        TODO("Not yet implemented")
+    }
+
+    override fun getMemberGroupsCount(
+        projectCode: String,
+        memberId: String
+    ): List<MemberGroupCountWithPermissionsVo> {
+        // 1. 查询项目下包含该成员的组列表
+        val projectGroupIds = authResourceGroupMemberDao.listResourceGroupMember(
+            dslContext = dslContext,
+            projectCode = projectCode,
+            resourceType = AuthResourceType.PROJECT.value,
+            memberId = memberId
+        ).map { it.iamGroupId.toString() }
+        // 2. 通过项目组ID获取人员模板ID
+        val iamTemplateId = authResourceGroupDao.listByRelationId(
+            dslContext = dslContext,
+            projectCode = projectCode,
+            iamGroupIds = projectGroupIds
+        ).filter { it.iamTemplateId != null }
+            .map { it.iamTemplateId.toString() }
+        // 3. 获取成员直接加入的组和通过模板加入的组
+        val memberGroupCountMap = authResourceGroupMemberDao.countMemberGroup(
+            dslContext = dslContext,
+            projectCode = projectCode,
+            memberId = memberId,
+            iamTemplateIds = iamTemplateId
+        )
+        val memberGroupCountList = mutableListOf<MemberGroupCountWithPermissionsVo>()
+        // 项目排在第一位
+        memberGroupCountList.add(
+            MemberGroupCountWithPermissionsVo(
+                resourceType = AuthResourceType.PROJECT.value,
+                resourceTypeName = I18nUtil.getCodeLanMessage(
+                    messageCode = AuthResourceType.PROJECT.value + AuthI18nConstants.RESOURCE_TYPE_NAME_SUFFIX
+                ),
+                count = memberGroupCountMap[AuthResourceType.PROJECT.value] ?: 0
+            )
+        )
+        rbacCacheService.listResourceTypes()
+            .filter { it.resourceType != AuthResourceType.PROJECT.value }
+            .forEach { resourceTypeInfoVo ->
+                val memberGroupCount = MemberGroupCountWithPermissionsVo(
+                    resourceType = resourceTypeInfoVo.resourceType,
+                    resourceTypeName = I18nUtil.getCodeLanMessage(
+                        messageCode = resourceTypeInfoVo.resourceType + AuthI18nConstants.RESOURCE_TYPE_NAME_SUFFIX,
+                        defaultMessage = resourceTypeInfoVo.name
+                    ),
+                    count = memberGroupCountMap[resourceTypeInfoVo.resourceType] ?: 0
+                )
+                memberGroupCountList.add(memberGroupCount)
+            }
+        return memberGroupCountList
+    }
+
+    override fun addGroupMember(
+        projectCode: String,
+        memberId: String,
+        /*user 或 department*/
+        memberType: String,
+        expiredAt: Long,
+        iamGroupId: Int
+    ): Boolean {
+        // 获取对应的资源组
+        val authResourceGroup = authResourceGroupDao.get(
+            dslContext = dslContext,
+            projectCode = projectCode,
+            relationId = iamGroupId.toString()
+        ) ?: throw ErrorCodeException(
+            errorCode = AuthMessageCode.GROUP_NOT_EXIST
+        )
+        val managerMember = ManagerMember(memberType, memberId)
+        val managerMemberGroupDTO = ManagerMemberGroupDTO.builder()
+            .members(listOf(managerMember))
+            .expiredAt(expiredAt)
+            .build()
+        iamV2ManagerService.createRoleGroupMemberV2(iamGroupId, managerMemberGroupDTO)
+        val memberDetails = deptService.getMemberInfo(
+            memberId = memberId,
+            memberType = ManagerScopesEnum.valueOf(memberType)
+        )
+        with(authResourceGroup) {
+            authResourceGroupMemberDao.create(
+                dslContext = dslContext,
+                projectCode = projectCode,
+                resourceType = resourceType,
+                resourceCode = resourceCode,
+                groupCode = groupCode,
+                iamGroupId = relationId.toInt(),
+                memberId = memberId,
+                memberName = memberDetails.displayName,
+                memberType = memberType,
+                expiredTime = DateTimeUtil.convertTimestampToLocalDateTime(expiredAt)
+            )
+        }
+        return true
+    }
+
     override fun batchAddResourceGroupMembers(
         projectCode: String,
         iamGroupId: Int,
@@ -142,6 +310,38 @@ class RbacPermissionResourceMemberService constructor(
             val managerMemberGroup =
                 ManagerMemberGroupDTO.builder().members(iamMemberInfos).expiredAt(expiredTime).build()
             iamV2ManagerService.createRoleGroupMemberV2(iamGroupId, managerMemberGroup)
+            // 获取对应的资源组
+            val authResourceGroup = authResourceGroupDao.get(
+                dslContext = dslContext,
+                projectCode = projectCode,
+                relationId = iamGroupId.toString()
+            ) ?: throw ErrorCodeException(
+                errorCode = AuthMessageCode.GROUP_NOT_EXIST
+            )
+            val groupMembersList = mutableListOf<AuthResourceGroupMember>()
+            iamMemberInfos.forEach {
+                val memberDetails = deptService.getMemberInfo(
+                    memberId = it.id,
+                    memberType = ManagerScopesEnum.valueOf(it.type)
+                )
+                groupMembersList.add(
+                    AuthResourceGroupMember(
+                        projectCode = projectCode,
+                        resourceType = authResourceGroup.resourceType,
+                        resourceCode = authResourceGroup.resourceCode,
+                        groupCode = authResourceGroup.groupCode,
+                        iamGroupId = authResourceGroup.relationId.toInt(),
+                        memberId = it.id,
+                        memberName = memberDetails.displayName,
+                        memberType = it.type,
+                        expiredTime = DateTimeUtil.convertTimestampToLocalDateTime(expiredTime)
+                    )
+                )
+            }
+            authResourceGroupMemberDao.batchCreate(
+                dslContext = dslContext,
+                groupMembers = groupMembersList
+            )
         }
         return true
     }
@@ -207,12 +407,21 @@ class RbacPermissionResourceMemberService constructor(
         )
         val userType = ManagerScopesEnum.getType(ManagerScopesEnum.USER)
         val deptType = ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT)
+        val allMemberIds = mutableListOf<String>()
         if (!members.isNullOrEmpty()) {
             iamV2ManagerService.deleteRoleGroupMemberV2(iamGroupId, userType, members.joinToString(","))
+            allMemberIds.addAll(members)
         }
         if (!departments.isNullOrEmpty()) {
             iamV2ManagerService.deleteRoleGroupMemberV2(iamGroupId, deptType, departments.joinToString(","))
+            allMemberIds.addAll(departments)
         }
+        authResourceGroupMemberDao.batchDeleteGroupMembers(
+            dslContext = dslContext,
+            projectCode = projectCode,
+            iamGroupId = iamGroupId,
+            memberIds = allMemberIds
+        )
         return true
     }
 
@@ -335,12 +544,15 @@ class RbacPermissionResourceMemberService constructor(
                 // 自动续期时间由半年+随机天数,防止同一时间同时过期
                 val expiredTime = currentTime + AUTO_RENEWAL_EXPIRED_AT +
                     TimeUnit.DAYS.toSeconds(RandomUtils.nextLong(0, 180))
-                val managerMemberGroup =
-                    ManagerMemberGroupDTO.builder().members(listOf(ManagerMember(member.type, member.id)))
-                        .expiredAt(expiredTime).build()
                 autoRenewalMembers.add(member.id)
                 try {
-                    iamV2ManagerService.createRoleGroupMemberV2(iamGroupId, managerMemberGroup)
+                    addGroupMember(
+                        projectCode = projectCode,
+                        memberId = member.id,
+                        memberType = member.type,
+                        expiredAt = expiredTime,
+                        iamGroupId = iamGroupId
+                    )
                 } catch (ignored: Exception) {
                     // 用户不存在时,iam会抛异常
                     logger.error(
@@ -372,35 +584,339 @@ class RbacPermissionResourceMemberService constructor(
         return true
     }
 
-    override fun deleteGroupMember(
+    override fun batchRenewalGroupMembers(
         userId: String,
         projectCode: String,
-        resourceType: String,
-        groupId: Int
+        renewalConditionReq: GroupMemberRenewalConditionReq
     ): Boolean {
-        logger.info("delete group member|$userId|$projectCode|$resourceType|$groupId")
-        iamV2ManagerService.deleteRoleGroupMemberV2(
-            groupId,
-            ManagerScopesEnum.getType(ManagerScopesEnum.USER),
-            userId
+        logger.info("batch renewal group member $userId|$projectCode|$renewalConditionReq")
+        batchOperateGroupMembers(
+            projectCode = projectCode,
+            conditionReq = renewalConditionReq,
+            operateGroupMemberTask = ::renewalTask
         )
         return true
     }
 
-    override fun addGroupMember(
+    private fun renewalTask(
+        projectCode: String,
+        groupId: Int,
+        renewalConditionReq: GroupMemberRenewalConditionReq,
+        expiredAt: Long
+    ) {
+        logger.info("renewal group member ${renewalConditionReq.targetMember}|$projectCode|$groupId|$expiredAt")
+        val targetMember = renewalConditionReq.targetMember
+        val secondsOfRenewalDuration = TimeUnit.DAYS.toSeconds(renewalConditionReq.renewalDuration.toLong())
+        val secondsOfCurrentTime = System.currentTimeMillis() / 1000
+        // 若权限已过期，则为当前时间+续期天数，若未过期，则为有效期+续期天数
+        val finalExpiredAt = if (expiredAt < secondsOfCurrentTime) {
+            secondsOfCurrentTime
+        } else {
+            expiredAt
+        } + secondsOfRenewalDuration
+        if (!isNeedToRenewal(finalExpiredAt)) {
+            return
+        }
+        iamV2ManagerService.renewalRoleGroupMemberV2(
+            groupId,
+            ManagerMemberGroupDTO.builder()
+                .members(listOf(ManagerMember(targetMember.type, targetMember.id)))
+                .expiredAt(finalExpiredAt)
+                .build()
+        )
+        authResourceGroupMemberDao.update(
+            dslContext = dslContext,
+            projectCode = projectCode,
+            iamGroupId = groupId,
+            expiredTime = DateTimeUtil.convertTimestampToLocalDateTime(expiredAt),
+            memberId = targetMember.id
+        )
+    }
+
+    private fun isNeedToRenewal(expiredAt: Long): Boolean {
+        return expiredAt < PERMANENT_EXPIRED_TIME
+    }
+
+    override fun batchDeleteResourceGroupMembers(
         userId: String,
-        /*user 或 department*/
-        memberType: String,
-        expiredAt: Long,
-        groupId: Int
+        projectCode: String,
+        removeMemberDTO: GroupMemberCommonConditionReq
     ): Boolean {
-        val managerMember = ManagerMember(memberType, userId)
-        val managerMemberGroupDTO = ManagerMemberGroupDTO.builder()
-            .members(listOf(managerMember))
-            .expiredAt(expiredAt)
-            .build()
-        iamV2ManagerService.createRoleGroupMemberV2(groupId, managerMemberGroupDTO)
+        logger.info("batch delete group members $userId|$projectCode|$removeMemberDTO")
+        removeMemberDTO.excludedUniqueManagerGroup = true
+        batchOperateGroupMembers(
+            projectCode = projectCode,
+            conditionReq = removeMemberDTO,
+            operateGroupMemberTask = ::deleteTask
+        )
         return true
+    }
+
+    private fun deleteTask(
+        projectCode: String,
+        groupId: Int,
+        removeMemberDTO: GroupMemberCommonConditionReq,
+        expiredAt: Long
+    ) {
+        logger.info("delete group member $projectCode|$groupId|${removeMemberDTO.targetMember}")
+        iamV2ManagerService.deleteRoleGroupMemberV2(
+            groupId,
+            removeMemberDTO.targetMember.type,
+            removeMemberDTO.targetMember.id
+        )
+        authResourceGroupMemberDao.batchDeleteGroupMembers(
+            dslContext = dslContext,
+            projectCode = projectCode,
+            iamGroupId = groupId,
+            memberIds = listOf(removeMemberDTO.targetMember.id)
+        )
+    }
+
+    override fun batchHandoverGroupMembers(
+        userId: String,
+        projectCode: String,
+        handoverMemberDTO: GroupMemberHandoverConditionReq
+    ): Boolean {
+        logger.info("batch handover group members $userId|$projectCode|$handoverMemberDTO")
+        batchOperateGroupMembers(
+            projectCode = projectCode,
+            conditionReq = handoverMemberDTO,
+            operateGroupMemberTask = ::handoverTask
+        )
+        return true
+    }
+
+    override fun removeMemberFromProject(
+        userId: String,
+        projectCode: String,
+        removeMemberFromProjectReq: RemoveMemberFromProjectReq
+    ): Boolean {
+        logger.info("remove member from project $userId|$projectCode|$removeMemberFromProjectReq")
+        with(removeMemberFromProjectReq) {
+            val memberType = targetMember.type
+            if (memberType == ManagerScopesEnum.getType(ManagerScopesEnum.USER)) {
+                val handoverMemberDTO = GroupMemberHandoverConditionReq(
+                    allSelection = true,
+                    targetMember = targetMember,
+                    handoverTo = handoverTo!!
+                )
+                batchOperateGroupMembers(
+                    projectCode = projectCode,
+                    conditionReq = handoverMemberDTO,
+                    operateGroupMemberTask = ::handoverTask
+                )
+            } else {
+                val removeMemberDTO = GroupMemberCommonConditionReq(
+                    allSelection = true,
+                    targetMember = targetMember
+                )
+                batchOperateGroupMembers(
+                    projectCode = projectCode,
+                    conditionReq = removeMemberDTO,
+                    operateGroupMemberTask = ::deleteTask
+                )
+            }
+        }
+        return true
+    }
+
+    private fun handoverTask(
+        projectCode: String,
+        groupId: Int,
+        handoverMemberDTO: GroupMemberHandoverConditionReq,
+        expiredAt: Long
+    ) {
+        logger.info(
+            "handover group member $projectCode|$groupId|" +
+                "${handoverMemberDTO.targetMember}|${handoverMemberDTO.handoverTo}"
+        )
+        val currentTimeSeconds = System.currentTimeMillis() / 1000
+        // 一键退出项目，即全量交接权限，若用户加入的用户组已过期，则直接删除，不做交接
+        if (handoverMemberDTO.allSelection && expiredAt < currentTimeSeconds) {
+            authResourceGroupMemberDao.batchDeleteGroupMembers(
+                dslContext = dslContext,
+                projectCode = projectCode,
+                iamGroupId = groupId,
+                memberIds = listOf(handoverMemberDTO.targetMember.id)
+            )
+            iamV2ManagerService.deleteRoleGroupMemberV2(
+                groupId,
+                handoverMemberDTO.targetMember.type,
+                handoverMemberDTO.targetMember.id
+            )
+            return
+        }
+
+        val members = listOf(
+            ManagerMember(
+                handoverMemberDTO.handoverTo.type,
+                handoverMemberDTO.handoverTo.id
+            )
+        )
+        iamV2ManagerService.createRoleGroupMemberV2(
+            groupId,
+            ManagerMemberGroupDTO.builder()
+                .members(members)
+                .expiredAt(expiredAt)
+                .build()
+        )
+        iamV2ManagerService.deleteRoleGroupMemberV2(
+            groupId,
+            handoverMemberDTO.targetMember.type,
+            handoverMemberDTO.targetMember.id
+        )
+        authResourceGroupMemberDao.handoverGroupMembers(
+            dslContext = dslContext,
+            projectCode = projectCode,
+            iamGroupId = groupId,
+            handoverFrom = handoverMemberDTO.targetMember,
+            handoverTo = handoverMemberDTO.handoverTo,
+            expiredTime = DateTimeUtil.convertTimestampToLocalDateTime(expiredAt)
+        )
+    }
+
+    private fun <T : GroupMemberCommonConditionReq> batchOperateGroupMembers(
+        projectCode: String,
+        conditionReq: T,
+        operateGroupMemberTask: (
+            projectCode: String,
+            groupId: Int,
+            conditionReq: T,
+            expiredAt: Long
+        ) -> Unit
+    ): Boolean {
+        val groupIds = getGroupIdsByCondition(
+            projectCode = projectCode,
+            commonCondition = conditionReq
+        )
+        val targetMember = conditionReq.targetMember
+        val memberGroupsDetailsList = listMemberGroupsDetails(
+            memberId = targetMember.id,
+            memberType = targetMember.type,
+            groupIds = groupIds
+        )
+        val futures = groupIds.map { groupId ->
+            CompletableFuture.supplyAsync(
+                {
+                    val expiredAt = memberGroupsDetailsList.firstOrNull { it.id == groupId }?.expiredAt
+                        ?: throw ErrorCodeException(
+                            errorCode = AuthMessageCode.ERROR_AUTH_GROUP_NOT_EXIST,
+                            params = arrayOf(groupId.toString()),
+                            defaultMessage = "group $groupId not exist"
+                        )
+                    retry(3) {
+                        operateGroupMemberTask.invoke(
+                            projectCode,
+                            groupId,
+                            conditionReq,
+                            expiredAt
+                        )
+                    }
+                }, executorService
+            )
+        }
+        handleFutures(futures)
+        return true
+    }
+
+    private inline fun retry(
+        retries: Int,
+        block: () -> Unit
+    ) {
+        var remainingRetries = retries
+        while (remainingRetries > 0) {
+            try {
+                block()
+                return
+            } catch (ignore: Exception) {
+                remainingRetries--
+                logger.warn("retry batch operate group members failed", ignore)
+                if (remainingRetries == 0) {
+                    throw ignore
+                }
+            }
+        }
+    }
+
+    private fun handleFutures(futures: List<CompletableFuture<Unit>>) {
+        try {
+            CompletableFuture.allOf(*futures.toTypedArray()).join()
+        } catch (ignore: Exception) {
+            logger.warn("batch operate group members failed", ignore)
+            throw ErrorCodeException(
+                errorCode = AuthMessageCode.ERROR_BATCH_OPERATE_GROUP_MEMBERS
+            )
+        }
+    }
+
+    private fun getGroupIdsByCondition(
+        projectCode: String,
+        commonCondition: GroupMemberCommonConditionReq
+    ): List<Int> {
+        val finalGroupIds = mutableListOf<Int>()
+        with(commonCondition) {
+            val groupIdsByCondition = when {
+                // 全选
+                allSelection -> {
+                    authResourceGroupMemberDao.listResourceGroupMember(
+                        dslContext = dslContext,
+                        projectCode = projectCode,
+                        memberType = targetMember.type,
+                        memberId = targetMember.id
+                    ).map { it.iamGroupId }
+                }
+                // 全选某种资源类型
+                resourceTypes.isNotEmpty() -> {
+                    resourceTypes.flatMap { resourceType ->
+                        authResourceGroupMemberDao.listResourceGroupMember(
+                            dslContext = dslContext,
+                            projectCode = projectCode,
+                            memberType = targetMember.type,
+                            memberId = targetMember.id,
+                            resourceType = resourceType
+                        ).map { it.iamGroupId }
+                    }
+                }
+                else -> {
+                    emptyList()
+                }
+            }
+            // 单独勾选具体的用户组
+            if (groupIds.isNotEmpty()) {
+                finalGroupIds.addAll(groupIds)
+            }
+            finalGroupIds.addAll(groupIdsByCondition)
+        }
+        return finalGroupIds.distinct()
+    }
+
+    private fun listMemberGroupsDetails(
+        memberId: String,
+        memberType: String,
+        groupIds: List<Int>
+    ): List<MemberGroupDetailsResponse> {
+        val memberGroupsDetailsList = mutableListOf<MemberGroupDetailsResponse>()
+        val groupIdsChunk = groupIds.chunked(100)
+        val futures = groupIdsChunk.map {
+            CompletableFuture.supplyAsync(
+                {
+                    memberGroupsDetailsList.addAll(
+                        iamV2ManagerService.listMemberGroupsDetails(
+                            memberType,
+                            memberId,
+                            it.joinToString(",")
+                        )
+                    )
+                }, executorService
+            )
+        }
+        try {
+            CompletableFuture.allOf(*futures.toTypedArray()).join()
+        } catch (ignore: Exception) {
+            logger.warn("list member groups details failed!$ignore")
+            throw ignore
+        }
+        return memberGroupsDetailsList
     }
 
     companion object {
@@ -416,5 +932,8 @@ class RbacPermissionResourceMemberService constructor(
         private val AUTO_RENEWAL_EXPIRED_AT = TimeUnit.DAYS.toSeconds(180)
 
         private val executorService = Executors.newFixedThreadPool(30)
+
+        // 永久过期时间
+        private const val PERMANENT_EXPIRED_TIME = 4102444800L
     }
 }
