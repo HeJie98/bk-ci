@@ -1,13 +1,14 @@
 package com.tencent.devops.auth.dao
 
+import com.tencent.devops.common.api.util.timestampmilli
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationConditionRequest
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationDTO
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverDTO
+import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationResponse
 import com.tencent.devops.model.auth.tables.TAuthResourceAuthorization
 import com.tencent.devops.model.auth.tables.records.TAuthResourceAuthorizationRecord
 import org.jooq.Condition
 import org.jooq.DSLContext
-import org.jooq.Result
 import org.springframework.stereotype.Repository
 import java.sql.Timestamp
 import java.time.LocalDateTime
@@ -93,20 +94,20 @@ class AuthAuthorizationDao {
         projectCode: String,
         resourceType: String,
         resourceCode: String
-    ): TAuthResourceAuthorizationRecord? {
+    ): ResourceAuthorizationResponse? {
         return with(TAuthResourceAuthorization.T_AUTH_RESOURCE_AUTHORIZATION) {
             dslContext.selectFrom(this)
                 .where(PROJECT_CODE.eq(projectCode))
                 .and(RESOURCE_TYPE.eq(resourceType))
                 .and(RESOURCE_CODE.eq(resourceCode))
-                .fetchAny()
+                .fetchAny()?.convert()
         }
     }
 
     fun list(
         dslContext: DSLContext,
         condition: ResourceAuthorizationConditionRequest
-    ): Result<TAuthResourceAuthorizationRecord> {
+    ): List<ResourceAuthorizationResponse> {
         return with(TAuthResourceAuthorization.T_AUTH_RESOURCE_AUTHORIZATION) {
             dslContext.selectFrom(this)
                 .where(buildQueryCondition(condition))
@@ -115,7 +116,7 @@ class AuthAuthorizationDao {
                         it.limit((condition.page!! - 1) * condition.pageSize!!, condition.pageSize)
                     } else it
                 }
-                .fetch()
+                .fetch().map { it.convert() }
         }
     }
 
@@ -140,7 +141,7 @@ class AuthAuthorizationDao {
         if (condition.resourceName != null) {
             conditions.add(RESOURCE_NAME.like("%${condition.resourceName}%"))
         }
-        if (condition.handoverFrom!=null){
+        if (condition.handoverFrom != null) {
             conditions.add(HANDOVER_FROM.eq(condition.handoverFrom))
         }
         if (condition.greaterThanHandoverTime != null && condition.lessThanHandoverTime != null) {
@@ -148,5 +149,16 @@ class AuthAuthorizationDao {
             conditions.add(HANDOVER_TIME.le(Timestamp(condition.lessThanHandoverTime!!).toLocalDateTime()))
         }
         return conditions
+    }
+
+    fun TAuthResourceAuthorizationRecord.convert(): ResourceAuthorizationResponse {
+        return ResourceAuthorizationResponse(
+            projectCode = projectCode,
+            resourceType = resourceType,
+            resourceName = resourceName,
+            resourceCode = resourceCode,
+            handoverTime = handoverTime.timestampmilli(),
+            handoverFrom = handoverFrom
+        )
     }
 }

@@ -4,7 +4,6 @@ import com.tencent.devops.auth.constant.AuthMessageCode
 import com.tencent.devops.auth.dao.AuthAuthorizationDao
 import com.tencent.devops.common.api.exception.ErrorCodeException
 import com.tencent.devops.common.api.model.SQLPage
-import com.tencent.devops.common.api.util.timestampmilli
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationConditionRequest
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationDTO
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverDTO
@@ -42,16 +41,7 @@ class PermissionAuthorizationServiceImpl constructor(
             projectCode = projectCode,
             resourceType = resourceType,
             resourceCode = resourceCode
-        )?.let {
-            ResourceAuthorizationResponse(
-                projectCode = it.projectCode,
-                resourceType = it.resourceType,
-                resourceName = it.resourceName,
-                resourceCode = it.resourceCode,
-                handoverTime = it.handoverTime.timestampmilli(),
-                handoverFrom = it.handoverFrom
-            )
-        } ?: throw ErrorCodeException(
+        ) ?: throw ErrorCodeException(
             errorCode = AuthMessageCode.ERROR_RESOURCE_AUTHORIZATION_NOT_FOUND
         )
     }
@@ -63,16 +53,7 @@ class PermissionAuthorizationServiceImpl constructor(
         val record = authAuthorizationDao.list(
             dslContext = dslContext,
             condition = condition
-        ).map {
-            ResourceAuthorizationResponse(
-                projectCode = it.projectCode,
-                resourceType = it.resourceType,
-                resourceName = it.resourceName,
-                resourceCode = it.resourceCode,
-                handoverTime = it.handoverTime.timestampmilli(),
-                handoverFrom = it.handoverFrom
-            )
-        }
+        )
         val count = authAuthorizationDao.count(
             dslContext = dslContext,
             condition = condition
