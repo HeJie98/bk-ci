@@ -425,7 +425,14 @@ class AuthResourceGroupMemberDao {
         with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
             conditions.add(PROJECT_CODE.eq(projectCode))
             conditions.add(
-                (MEMBER_ID.eq(memberId).and(MEMBER_TYPE.eq(ManagerScopesEnum.getType(ManagerScopesEnum.USER))))
+                (MEMBER_ID.eq(memberId).and(
+                    MEMBER_TYPE.`in`(
+                        listOf(
+                            ManagerScopesEnum.getType(ManagerScopesEnum.USER),
+                            ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT)
+                        )
+                    )
+                ))
                     .or(
                         MEMBER_ID.`in`(iamTemplateIds)
                             .and(MEMBER_TYPE.eq(ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE)))

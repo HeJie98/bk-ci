@@ -522,6 +522,7 @@ class RbacPermissionResourceGroupService @Autowired constructor(
         return true
     }
 
+    @Suppress("CyclomaticComplexMethod")
     override fun getMemberGroupsDetails(
         projectId: String,
         memberId: String,

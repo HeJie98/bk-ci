@@ -92,10 +92,10 @@ interface UserAuthResourceGroupResource {
         @QueryParam("memberId")
         @Parameter(description = "组织ID/成员ID")
         memberId: String,
-        @Parameter(description = "起始位置")
+        @Parameter(description = "起始位置,从0开始")
         @QueryParam("start")
         start: Int,
-        @Parameter(description = "结束位置")
+        @Parameter(description = "每页多少条")
         @QueryParam("limit")
         limit: Int
     ): Result<SQLPage<GroupDetailsInfoVo>>
