@@ -30,24 +30,12 @@ package com.tencent.devops.auth.pojo.request
 import com.tencent.devops.auth.pojo.ResourceMemberInfo
 import io.swagger.v3.oas.annotations.media.Schema
 
-@Schema(title = "用户组成员续期")
-data class GroupMemberRenewalConditionReq(
-    @get:Schema(title = "组IDs")
-    override val groupIds: List<Int>,
-    @get:Schema(title = "全选某种资源类型下的用户组")
-    override val resourceTypes: List<String> = emptyList(),
-    @get:Schema(title = "全量选择")
-    override val allSelection: Boolean = false,
-    @get:Schema(title = "是否排除唯一管理员组")
-    override var excludedUniqueManagerGroup: Boolean = false,
+@Schema(title = "用户组成员单条续期")
+data class GroupMemberSingleRenewalReq(
+    @get:Schema(title = "组ID")
+    val groupId: Int,
     @get:Schema(title = "目标对象")
-    override val targetMember: ResourceMemberInfo,
+    val targetMember: ResourceMemberInfo,
     @get:Schema(title = "续期时长(天)")
     val renewalDuration: Int
-) : GroupMemberCommonConditionReq(
-    groupIds = groupIds,
-    resourceTypes = resourceTypes,
-    allSelection = allSelection,
-    excludedUniqueManagerGroup = excludedUniqueManagerGroup,
-    targetMember = targetMember
 )

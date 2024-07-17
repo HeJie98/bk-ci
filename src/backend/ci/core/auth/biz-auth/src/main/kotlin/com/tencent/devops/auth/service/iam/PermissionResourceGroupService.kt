@@ -95,11 +95,13 @@ interface PermissionResourceGroupService {
         groupCode: String
     ): Boolean
 
+    @Suppress("LongParameterList")
     fun getMemberGroupsDetails(
         projectId: String,
-        resourceType: String,
         memberId: String,
-        start: Int,
-        limit: Int
+        resourceType: String?,
+        iamGroupIds: List<Int>? = null,
+        start: Int?,
+        limit: Int?
     ): SQLPage<GroupDetailsInfoVo>
 }

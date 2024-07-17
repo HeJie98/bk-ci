@@ -5,7 +5,9 @@ import com.tencent.devops.auth.pojo.dto.GroupMemberRenewalDTO
 import com.tencent.devops.auth.pojo.request.GroupMemberCommonConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberHandoverConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberRenewalConditionReq
+import com.tencent.devops.auth.pojo.request.GroupMemberSingleRenewalReq
 import com.tencent.devops.auth.pojo.request.RemoveMemberFromProjectReq
+import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.MemberGroupCountWithPermissionsVo
 import com.tencent.devops.auth.pojo.vo.ResourceMemberCountVO
 import com.tencent.devops.auth.service.iam.PermissionResourceMemberService
@@ -64,6 +66,14 @@ class SamplePermissionResourceMemberService : PermissionResourceMemberService {
         groupId: Int,
         memberRenewalDTO: GroupMemberRenewalDTO
     ): Boolean = true
+
+    override fun renewalGroupMember(
+        userId: String,
+        projectCode: String,
+        renewalConditionReq: GroupMemberSingleRenewalReq
+    ): GroupDetailsInfoVo {
+        TODO("Not yet implemented")
+    }
 
     override fun batchRenewalGroupMembers(
         userId: String,

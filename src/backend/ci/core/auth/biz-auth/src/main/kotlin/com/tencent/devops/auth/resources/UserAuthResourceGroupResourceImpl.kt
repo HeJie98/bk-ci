@@ -40,6 +40,7 @@ import com.tencent.devops.auth.service.iam.PermissionResourceGroupService
 import com.tencent.devops.auth.service.iam.PermissionResourceMemberService
 import com.tencent.devops.common.api.model.SQLPage
 import com.tencent.devops.common.api.pojo.Result
+import com.tencent.devops.common.auth.api.BkManagerCheck
 import com.tencent.devops.common.web.RestResource
 import org.springframework.beans.factory.annotation.Autowired
 
@@ -64,6 +65,7 @@ class UserAuthResourceGroupResourceImpl @Autowired constructor(
         )
     }
 
+    @BkManagerCheck
     override fun getMemberGroupsDetails(
         userId: String,
         projectId: String,
@@ -73,7 +75,6 @@ class UserAuthResourceGroupResourceImpl @Autowired constructor(
         limit: Int
     ): Result<SQLPage<GroupDetailsInfoVo>> {
         return Result(
-            // todo 权限校验
             permissionResourceGroupService.getMemberGroupsDetails(
                 projectId = projectId,
                 resourceType = resourceType,

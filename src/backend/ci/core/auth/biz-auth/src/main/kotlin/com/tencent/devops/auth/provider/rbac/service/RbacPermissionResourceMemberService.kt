@@ -20,10 +20,13 @@ import com.tencent.devops.auth.pojo.dto.GroupMemberRenewalDTO
 import com.tencent.devops.auth.pojo.request.GroupMemberCommonConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberHandoverConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberRenewalConditionReq
+import com.tencent.devops.auth.pojo.request.GroupMemberSingleRenewalReq
 import com.tencent.devops.auth.pojo.request.RemoveMemberFromProjectReq
+import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.MemberGroupCountWithPermissionsVo
 import com.tencent.devops.auth.pojo.vo.ResourceMemberCountVO
 import com.tencent.devops.auth.service.DeptService
+import com.tencent.devops.auth.service.iam.PermissionResourceGroupService
 import com.tencent.devops.auth.service.iam.PermissionResourceMemberService
 import com.tencent.devops.common.api.exception.ErrorCodeException
 import com.tencent.devops.common.api.model.SQLPage
@@ -49,7 +52,8 @@ class RbacPermissionResourceMemberService constructor(
     private val authResourceGroupMemberDao: AuthResourceGroupMemberDao,
     private val dslContext: DSLContext,
     private val deptService: DeptService,
-    private val rbacCacheService: RbacCacheService
+    private val rbacCacheService: RbacCacheService,
+    private val resourceGroupService: PermissionResourceGroupService
 ) : PermissionResourceMemberService {
     override fun getResourceGroupMembers(
         projectCode: String,
@@ -582,6 +586,32 @@ class RbacPermissionResourceMemberService constructor(
             .applicant(userId).build()
         iamV2ManagerService.renewalRoleGroupMemberApplication(managerMemberGroupDTO)
         return true
+    }
+
+    override fun renewalGroupMember(
+        userId: String,
+        projectCode: String,
+        renewalConditionReq: GroupMemberSingleRenewalReq
+    ): GroupDetailsInfoVo {
+        logger.info("renewal group member $userId|$projectCode|$renewalConditionReq")
+        val groupId = renewalConditionReq.groupId
+        batchOperateGroupMembers(
+            projectCode = projectCode,
+            conditionReq = GroupMemberRenewalConditionReq(
+                groupIds = listOf(groupId),
+                targetMember = renewalConditionReq.targetMember,
+                renewalDuration = renewalConditionReq.renewalDuration
+            ),
+            operateGroupMemberTask = ::renewalTask
+        )
+        return resourceGroupService.getMemberGroupsDetails(
+            projectId = projectCode,
+            memberId = renewalConditionReq.targetMember.id,
+            iamGroupIds = listOf(groupId),
+            resourceType = null,
+            start = null,
+            limit = null
+        ).records.first { it.groupId == groupId }
     }
 
     override fun batchRenewalGroupMembers(

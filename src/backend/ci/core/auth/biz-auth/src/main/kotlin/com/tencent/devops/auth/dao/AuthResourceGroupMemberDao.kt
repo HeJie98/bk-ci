@@ -322,13 +322,15 @@ class AuthResourceGroupMemberDao {
         projectCode: String,
         memberId: String,
         iamTemplateIds: List<String>,
-        resourceType: String? = null
+        resourceType: String? = null,
+        iamGroupIds: List<Int>? = null
     ): Map<String, Long> {
         val conditions = buildMemberGroupCondition(
             projectCode = projectCode,
             memberId = memberId,
             iamTemplateIds = iamTemplateIds,
-            resourceType = resourceType
+            resourceType = resourceType,
+            iamGroupIds = iamGroupIds
         )
         return with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
             val select = dslContext.select(RESOURCE_TYPE, count())
@@ -347,21 +349,23 @@ class AuthResourceGroupMemberDao {
         projectCode: String,
         memberId: String,
         iamTemplateIds: List<String>,
-        resourceType: String,
-        offset: Int,
-        limit: Int
+        resourceType: String?,
+        iamGroupIds: List<Int>? = null,
+        offset: Int?,
+        limit: Int?
     ): List<AuthResourceGroupMember> {
         val conditions = buildMemberGroupCondition(
             projectCode = projectCode,
             memberId = memberId,
             iamTemplateIds = iamTemplateIds,
-            resourceType = resourceType
+            resourceType = resourceType,
+            iamGroupIds = iamGroupIds
         )
         return with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
             dslContext.selectFrom(this)
                 .where(conditions)
                 .orderBy(IAM_GROUP_ID)
-                .offset(offset).limit(limit)
+                .let { if (offset != null && limit != null) it.offset(offset).limit(limit) else it }
                 .fetch()
                 .map { convert(it) }
         }
@@ -371,7 +375,8 @@ class AuthResourceGroupMemberDao {
         projectCode: String,
         memberId: String,
         iamTemplateIds: List<String>,
-        resourceType: String? = null
+        resourceType: String? = null,
+        iamGroupIds: List<Int>? = null
     ): MutableList<Condition> {
         val conditions = mutableListOf<Condition>()
         with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
@@ -384,6 +389,7 @@ class AuthResourceGroupMemberDao {
                     )
             )
             resourceType?.let { conditions.add(RESOURCE_TYPE.eq(resourceType)) }
+            iamGroupIds?.let { conditions.add(IAM_GROUP_ID.`in`(iamGroupIds)) }
         }
         return conditions
     }

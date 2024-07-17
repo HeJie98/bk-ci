@@ -86,6 +86,7 @@ import com.tencent.devops.auth.service.ResourceService
 import com.tencent.devops.auth.service.SuperManagerService
 import com.tencent.devops.auth.service.iam.MigrateCreatorFixService
 import com.tencent.devops.auth.service.iam.PermissionProjectService
+import com.tencent.devops.auth.service.iam.PermissionResourceGroupService
 import com.tencent.devops.auth.service.iam.PermissionResourceMemberService
 import com.tencent.devops.auth.service.iam.PermissionResourceService
 import com.tencent.devops.auth.service.iam.PermissionService
@@ -173,7 +174,6 @@ class RbacAuthConfiguration {
         permissionSubsetManagerService: PermissionSubsetManagerService,
         permissionProjectService: PermissionProjectService,
         permissionGroupPoliciesService: PermissionGroupPoliciesService,
-        permissionResourceMemberService: PermissionResourceMemberService,
         authResourceGroupDao: AuthResourceGroupDao,
         dslContext: DSLContext,
         v2ManagerService: V2ManagerService,
@@ -187,7 +187,6 @@ class RbacAuthConfiguration {
         permissionSubsetManagerService = permissionSubsetManagerService,
         permissionProjectService = permissionProjectService,
         permissionGroupPoliciesService = permissionGroupPoliciesService,
-        permissionResourceMemberService = permissionResourceMemberService,
         authResourceGroupDao = authResourceGroupDao,
         dslContext = dslContext,
         v2ManagerService = v2ManagerService,
@@ -205,7 +204,8 @@ class RbacAuthConfiguration {
         authResourceGroupMemberDao: AuthResourceGroupMemberDao,
         dslContext: DSLContext,
         deptService: DeptService,
-        rbacCacheService: RbacCacheService
+        rbacCacheService: RbacCacheService,
+        resourceGroupService: PermissionResourceGroupService
     ) = RbacPermissionResourceMemberService(
         authResourceService = authResourceService,
         iamV2ManagerService = iamV2ManagerService,
@@ -213,7 +213,8 @@ class RbacAuthConfiguration {
         authResourceGroupMemberDao = authResourceGroupMemberDao,
         dslContext = dslContext,
         deptService = deptService,
-        rbacCacheService = rbacCacheService
+        rbacCacheService = rbacCacheService,
+        resourceGroupService = resourceGroupService
     )
 
     @Bean

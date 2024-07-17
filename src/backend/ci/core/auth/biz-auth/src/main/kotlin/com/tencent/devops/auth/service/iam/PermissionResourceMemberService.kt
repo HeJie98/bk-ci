@@ -5,11 +5,12 @@ import com.tencent.devops.auth.pojo.dto.GroupMemberRenewalDTO
 import com.tencent.devops.auth.pojo.request.GroupMemberCommonConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberHandoverConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberRenewalConditionReq
+import com.tencent.devops.auth.pojo.request.GroupMemberSingleRenewalReq
 import com.tencent.devops.auth.pojo.request.RemoveMemberFromProjectReq
+import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.MemberGroupCountWithPermissionsVo
 import com.tencent.devops.auth.pojo.vo.ResourceMemberCountVO
 import com.tencent.devops.common.api.model.SQLPage
-import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.common.auth.api.pojo.BkAuthGroup
 import com.tencent.devops.common.auth.api.pojo.BkAuthGroupAndUserList
 
@@ -105,6 +106,7 @@ interface PermissionResourceMemberService {
         resourceCode: String
     )
 
+    // 需审批版本
     fun renewalGroupMember(
         userId: String,
         projectCode: String,
@@ -112,6 +114,13 @@ interface PermissionResourceMemberService {
         groupId: Int,
         memberRenewalDTO: GroupMemberRenewalDTO
     ): Boolean
+
+    // 无需审批版本
+    fun renewalGroupMember(
+        userId: String,
+        projectCode: String,
+        renewalConditionReq: GroupMemberSingleRenewalReq
+    ): GroupDetailsInfoVo
 
     fun batchRenewalGroupMembers(
         userId: String,

@@ -5,7 +5,9 @@ import com.tencent.devops.auth.pojo.ResourceMemberInfo
 import com.tencent.devops.auth.pojo.request.GroupMemberCommonConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberHandoverConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberRenewalConditionReq
+import com.tencent.devops.auth.pojo.request.GroupMemberSingleRenewalReq
 import com.tencent.devops.auth.pojo.request.RemoveMemberFromProjectReq
+import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.MemberGroupCountWithPermissionsVo
 import com.tencent.devops.auth.service.iam.PermissionResourceMemberService
 import com.tencent.devops.common.api.model.SQLPage
@@ -33,6 +35,21 @@ class UserAuthResourceMemberResourceImpl(
                 deptName = deptName,
                 page = page,
                 pageSize = pageSize
+            )
+        )
+    }
+
+    @BkManagerCheck
+    override fun renewalGroupMember(
+        userId: String,
+        projectId: String,
+        renewalConditionReq: GroupMemberSingleRenewalReq
+    ): Result<GroupDetailsInfoVo> {
+        return Result(
+            permissionResourceMemberService.renewalGroupMember(
+                userId = userId,
+                projectCode = projectId,
+                renewalConditionReq = renewalConditionReq
             )
         )
     }

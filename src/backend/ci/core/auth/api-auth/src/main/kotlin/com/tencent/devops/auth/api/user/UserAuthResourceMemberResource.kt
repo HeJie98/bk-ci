@@ -4,7 +4,9 @@ import com.tencent.devops.auth.pojo.ResourceMemberInfo
 import com.tencent.devops.auth.pojo.request.GroupMemberCommonConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberHandoverConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberRenewalConditionReq
+import com.tencent.devops.auth.pojo.request.GroupMemberSingleRenewalReq
 import com.tencent.devops.auth.pojo.request.RemoveMemberFromProjectReq
+import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.MemberGroupCountWithPermissionsVo
 import com.tencent.devops.common.api.auth.AUTH_HEADER_USER_ID
 import com.tencent.devops.common.api.model.SQLPage
@@ -52,6 +54,20 @@ interface UserAuthResourceMemberResource {
         @QueryParam("pageSize")
         pageSize: Int
     ): Result<SQLPage<ResourceMemberInfo>>
+
+    @PUT
+    @Path("/renewal")
+    @Operation(summary = "续期单个组成员权限--无需进行审批")
+    fun renewalGroupMember(
+        @Parameter(description = "用户名", required = true)
+        @HeaderParam(AUTH_HEADER_USER_ID)
+        userId: String,
+        @Parameter(description = "项目ID", required = true)
+        @PathParam("projectId")
+        projectId: String,
+        @Parameter(description = "续期成员请求实体")
+        renewalConditionReq: GroupMemberSingleRenewalReq
+    ): Result<GroupDetailsInfoVo>
 
     @PUT
     @Path("/batch/renewal")

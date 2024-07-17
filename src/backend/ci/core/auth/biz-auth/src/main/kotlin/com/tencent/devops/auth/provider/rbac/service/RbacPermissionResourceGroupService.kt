@@ -65,7 +65,6 @@ import com.tencent.devops.auth.pojo.vo.IamGroupPoliciesVo
 import com.tencent.devops.auth.service.AuthMonitorSpaceService
 import com.tencent.devops.auth.service.iam.PermissionProjectService
 import com.tencent.devops.auth.service.iam.PermissionResourceGroupService
-import com.tencent.devops.auth.service.iam.PermissionResourceMemberService
 import com.tencent.devops.common.api.exception.ErrorCodeException
 import com.tencent.devops.common.api.exception.PermissionForbiddenException
 import com.tencent.devops.common.api.model.SQLPage
@@ -89,7 +88,6 @@ class RbacPermissionResourceGroupService @Autowired constructor(
     private val permissionSubsetManagerService: PermissionSubsetManagerService,
     private val permissionProjectService: PermissionProjectService,
     private val permissionGroupPoliciesService: PermissionGroupPoliciesService,
-    private val permissionResourceMemberService: PermissionResourceMemberService,
     private val dslContext: DSLContext,
     private val authResourceGroupDao: AuthResourceGroupDao,
     private val v2ManagerService: V2ManagerService,
@@ -201,11 +199,12 @@ class RbacPermissionResourceGroupService @Autowired constructor(
                 condition.getAllProjectMembersGroup
 
         if (shouldPlusAllProjectMemberGroup) {
-            val resourceMemberCount = permissionResourceMemberService.getResourceMemberCount(
-                projectCode = condition.projectId,
-                resourceType = AuthResourceType.PROJECT.value,
-                resourceCode = condition.projectId
+            val projectMemberCount = authResourceGroupMemberDao.countProjectMember(
+                dslContext = dslContext,
+                projectCode = condition.projectId
             )
+            val userCount = projectMemberCount[ManagerScopesEnum.getType(ManagerScopesEnum.USER)] ?: 0
+            val departmentCount = projectMemberCount[ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT)] ?: 0
             // 从数据库中获取数据
             val allProjectMemberGroup = IamGroupInfoVo(
                 managerId = managerId,
@@ -219,8 +218,8 @@ class RbacPermissionResourceGroupService @Autowired constructor(
                     AuthI18nConstants.BK_ALL_PROJECT_MEMBERS_GROUP,
                     I18nUtil.getLanguage(userId)
                 ),
-                userCount = resourceMemberCount.userCount,
-                departmentCount = resourceMemberCount.departmentCount,
+                userCount = userCount,
+                departmentCount = departmentCount,
                 projectMemberGroup = true
             )
             this.add(0, allProjectMemberGroup)
@@ -551,10 +550,11 @@ class RbacPermissionResourceGroupService @Autowired constructor(
 
     override fun getMemberGroupsDetails(
         projectId: String,
-        resourceType: String,
         memberId: String,
-        start: Int,
-        limit: Int
+        resourceType: String?,
+        iamGroupIds: List<Int>?,
+        start: Int?,
+        limit: Int?
     ): SQLPage<GroupDetailsInfoVo> {
         // 查询项目下包含该成员的组列表
         val projectGroupIds = authResourceGroupMemberDao.listResourceGroupMember(
@@ -576,7 +576,8 @@ class RbacPermissionResourceGroupService @Autowired constructor(
             projectCode = projectId,
             memberId = memberId,
             iamTemplateIds = iamTemplateId,
-            resourceType = resourceType
+            resourceType = resourceType,
+            iamGroupIds = iamGroupIds,
         )[resourceType] ?: 0L
         val resourceGroupMembers = authResourceGroupMemberDao.listMemberGroupDetail(
             dslContext = dslContext,
@@ -584,6 +585,7 @@ class RbacPermissionResourceGroupService @Autowired constructor(
             memberId = memberId,
             iamTemplateIds = iamTemplateId,
             resourceType = resourceType,
+            iamGroupIds = iamGroupIds,
             offset = start,
             limit = limit
         )
@@ -675,7 +677,7 @@ class RbacPermissionResourceGroupService @Autowired constructor(
                         RemoveMemberButtonControl.TEMPLATE
 
                     resourceGroup.resourceType == AuthResourceType.PROJECT.value &&
-                            uniqueManagerGroups.contains(it.iamGroupId) -> RemoveMemberButtonControl.UNIQUE_MANAGER
+                        uniqueManagerGroups.contains(it.iamGroupId) -> RemoveMemberButtonControl.UNIQUE_MANAGER
 
                     uniqueManagerGroups.contains(it.iamGroupId) -> RemoveMemberButtonControl.UNIQUE_OWNER
 
