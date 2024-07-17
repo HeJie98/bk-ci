@@ -124,6 +124,7 @@ class UserAuthResourceGroupResourceImpl @Autowired constructor(
         )
     }
 
+    @BkManagerCheck
     override fun deleteGroup(
         userId: String,
         projectId: String,
@@ -140,6 +141,7 @@ class UserAuthResourceGroupResourceImpl @Autowired constructor(
         )
     }
 
+    @BkManagerCheck
     override fun rename(
         userId: String,
         projectId: String,

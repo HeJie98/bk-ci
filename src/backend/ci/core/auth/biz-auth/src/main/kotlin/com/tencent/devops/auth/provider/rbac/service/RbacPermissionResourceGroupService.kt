@@ -86,7 +86,6 @@ class RbacPermissionResourceGroupService @Autowired constructor(
     private val iamV2ManagerService: V2ManagerService,
     private val authResourceService: AuthResourceService,
     private val permissionSubsetManagerService: PermissionSubsetManagerService,
-    private val permissionProjectService: PermissionProjectService,
     private val permissionGroupPoliciesService: PermissionGroupPoliciesService,
     private val dslContext: DSLContext,
     private val authResourceGroupDao: AuthResourceGroupDao,
@@ -313,12 +312,6 @@ class RbacPermissionResourceGroupService @Autowired constructor(
         groupId: Int
     ): Boolean {
         logger.info("delete group|$userId|$projectId|$resourceType|$groupId")
-        if (userId != null) {
-            checkProjectManager(
-                userId = userId,
-                projectId = projectId
-            )
-        }
         val authResourceGroup = authResourceGroupDao.getByRelationId(
             dslContext = dslContext,
             projectCode = projectId,
@@ -347,21 +340,6 @@ class RbacPermissionResourceGroupService @Autowired constructor(
             }
         }
         return true
-    }
-
-    private fun checkProjectManager(
-        userId: String,
-        projectId: String
-    ) {
-        val hasProjectManagePermission = permissionProjectService.checkProjectManager(
-            userId = userId,
-            projectCode = projectId
-        )
-        if (!hasProjectManagePermission) {
-            throw PermissionForbiddenException(
-                message = I18nUtil.getCodeLanMessage(AuthMessageCode.ERROR_AUTH_NO_MANAGE_PERMISSION)
-            )
-        }
     }
 
     override fun createGroup(
@@ -435,10 +413,6 @@ class RbacPermissionResourceGroupService @Autowired constructor(
                 defaultMessage = "group name cannot be less than 5 characters"
             )
         }
-        checkProjectManager(
-            userId = userId,
-            projectId = projectId
-        )
         val authResourceGroup = authResourceGroupDao.getByRelationId(
             dslContext = dslContext,
             projectCode = projectId,
