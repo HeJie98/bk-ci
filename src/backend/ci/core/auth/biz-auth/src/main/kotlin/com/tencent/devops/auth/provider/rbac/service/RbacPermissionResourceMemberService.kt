@@ -35,6 +35,7 @@ import com.tencent.devops.common.api.util.PageUtil
 import com.tencent.devops.common.auth.api.AuthResourceType
 import com.tencent.devops.common.auth.api.pojo.BkAuthGroup
 import com.tencent.devops.common.auth.api.pojo.BkAuthGroupAndUserList
+import com.tencent.devops.common.service.utils.RetryUtils
 import com.tencent.devops.common.web.utils.I18nUtil
 import com.tencent.devops.project.constant.ProjectMessageCode
 import org.apache.commons.lang3.RandomUtils
@@ -834,7 +835,7 @@ class RbacPermissionResourceMemberService constructor(
                             params = arrayOf(groupId.toString()),
                             defaultMessage = "group $groupId not exist"
                         )
-                    retry(3) {
+                    RetryUtils.retry(3) {
                         operateGroupMemberTask.invoke(
                             projectCode,
                             groupId,
@@ -847,25 +848,6 @@ class RbacPermissionResourceMemberService constructor(
         }
         handleFutures(futures)
         return true
-    }
-
-    private inline fun retry(
-        retries: Int,
-        block: () -> Unit
-    ) {
-        var remainingRetries = retries
-        while (remainingRetries > 0) {
-            try {
-                block()
-                return
-            } catch (ignore: Exception) {
-                remainingRetries--
-                logger.warn("retry batch operate group members failed", ignore)
-                if (remainingRetries == 0) {
-                    throw ignore
-                }
-            }
-        }
     }
 
     private fun handleFutures(futures: List<CompletableFuture<Unit>>) {

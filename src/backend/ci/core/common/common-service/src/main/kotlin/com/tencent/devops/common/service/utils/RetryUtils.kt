@@ -89,6 +89,24 @@ object RetryUtils {
         }
     }
 
+    inline fun retry(
+        retries: Int,
+        action: () -> Unit
+    ) {
+        var remainingRetries = retries
+        while (remainingRetries > 0) {
+            try {
+                action()
+                return
+            } catch (ignore: Exception) {
+                remainingRetries--
+                if (remainingRetries == 0) {
+                    throw ignore
+                }
+            }
+        }
+    }
+
     interface Action<out T> {
 
         fun execute(): T
