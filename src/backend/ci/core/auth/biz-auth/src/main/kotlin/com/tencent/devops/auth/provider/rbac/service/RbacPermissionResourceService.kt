@@ -63,7 +63,7 @@ class RbacPermissionResourceService(
     private val permissionSubsetManagerService: PermissionSubsetManagerService,
     private val authResourceCodeConverter: AuthResourceCodeConverter,
     private val permissionService: PermissionService,
-    private val permissionProjectService: PermissionProjectService,
+    private val rbacCacheService: RbacCacheService,
     private val traceEventDispatcher: TraceEventDispatcher,
     private val iamV2ManagerService: V2ManagerService,
     private val client: Client,
@@ -346,10 +346,11 @@ class RbacPermissionResourceService(
         resourceCode: String
     ): Boolean {
         checkProjectApprovalStatus(resourceType, resourceCode)
-        val checkProjectManage = permissionProjectService.checkProjectManager(
+        val checkProjectManage = rbacCacheService.checkProjectManager(
             userId = userId,
             projectCode = projectId
         )
+
         if (checkProjectManage) {
             return true
         }
