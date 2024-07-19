@@ -90,7 +90,7 @@ interface UserAuthAuthorizationResource {
         resourceCode: String
     ): Result<ResourceAuthorizationResponse>
 
-    @GET
+    @POST
     @Path("/{projectId}/resetResourceAuthorization")
     @Operation(summary = "重置资源授权管理")
     fun resetResourceAuthorization(
@@ -104,7 +104,7 @@ interface UserAuthAuthorizationResource {
         condition: ResourceAuthorizationHandoverConditionRequest
     ): Result<Map<ResourceAuthorizationHandoverStatus, List<ResourceAuthorizationHandoverDTO>>>
 
-    @GET
+    @POST
     @Path("/{projectId}/resetAllResourceAuthorization")
     @Operation(summary = "重置资源授权管理")
     fun resetAllResourceAuthorization(
