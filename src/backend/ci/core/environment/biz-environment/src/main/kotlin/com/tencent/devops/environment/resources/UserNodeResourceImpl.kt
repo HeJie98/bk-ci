@@ -37,7 +37,7 @@ import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverDTO
 import com.tencent.devops.common.service.prometheus.BkTimed
 import com.tencent.devops.common.web.RestResource
 import com.tencent.devops.environment.api.UserNodeResource
-import com.tencent.devops.environment.permission.EnvironmentAuthorizationService
+import com.tencent.devops.environment.permission.EnvNodeAuthorizationService
 import com.tencent.devops.environment.pojo.DisplayName
 import com.tencent.devops.environment.pojo.NodeWithPermission
 import com.tencent.devops.environment.service.NodeService
@@ -47,7 +47,7 @@ import org.springframework.beans.factory.annotation.Autowired
 @RestResource
 class UserNodeResourceImpl @Autowired constructor(
     private val nodeService: NodeService,
-    private val authorizationService: EnvironmentAuthorizationService
+    private val authorizationService: EnvNodeAuthorizationService
 ) : UserNodeResource {
 
     @BkTimed(extraTags = ["operate", "getNode"])

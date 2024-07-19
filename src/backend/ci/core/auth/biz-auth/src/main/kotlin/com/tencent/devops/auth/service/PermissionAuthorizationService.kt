@@ -27,12 +27,15 @@
 
 package com.tencent.devops.auth.service
 
+import com.tencent.devops.auth.pojo.vo.ResourceTypeInfoVo
 import com.tencent.devops.common.api.model.SQLPage
-import com.tencent.devops.common.api.pojo.Pagination
+import com.tencent.devops.common.auth.api.pojo.ResetAllResourceAuthorizationReq
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationConditionRequest
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationDTO
+import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverConditionRequest
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverDTO
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationResponse
+import com.tencent.devops.common.auth.enums.ResourceAuthorizationHandoverStatus
 
 interface PermissionAuthorizationService {
     /**
@@ -80,4 +83,22 @@ interface PermissionAuthorizationService {
     fun batchModifyHandoverFrom(
         resourceAuthorizationHandoverList: List<ResourceAuthorizationHandoverDTO>
     ): Boolean
+
+    /**
+     * 批量重置授权人--根据资源类型
+     */
+    fun resetResourceAuthorizationByResourceType(
+        operator: String,
+        projectCode: String,
+        condition: ResourceAuthorizationHandoverConditionRequest
+    ): Map<ResourceAuthorizationHandoverStatus, List<ResourceAuthorizationHandoverDTO>>
+
+    /**
+     * 批量重置授权人--项目下全量
+     */
+    fun resetAllResourceAuthorization(
+        operator: String,
+        projectCode: String,
+        condition: ResetAllResourceAuthorizationReq
+    ): List<ResourceTypeInfoVo>
 }

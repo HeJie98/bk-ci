@@ -27,8 +27,6 @@
 
 package com.tencent.devops.common.auth.authorization
 
-import com.tencent.devops.common.auth.api.AuthProjectApi
-import com.tencent.devops.common.auth.code.ProjectAuthServiceCode
 import com.tencent.devops.common.client.Client
 import org.springframework.boot.autoconfigure.AutoConfigureOrder
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
@@ -42,12 +40,8 @@ import org.springframework.core.Ordered
 class AuthAuthorizationConfiguration {
     @Bean
     fun authAuthorizationApi(
-        client: Client,
-        authProjectApi: AuthProjectApi,
-        projectAuthServiceCode: ProjectAuthServiceCode
+        client: Client
     ) = AuthAuthorizationService(
-        client = client,
-        authProjectApi = authProjectApi,
-        projectAuthServiceCode = projectAuthServiceCode
+        client = client
     )
 }

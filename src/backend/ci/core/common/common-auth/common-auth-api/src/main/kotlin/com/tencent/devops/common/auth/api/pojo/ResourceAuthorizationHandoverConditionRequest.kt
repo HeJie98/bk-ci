@@ -11,17 +11,17 @@ data class ResourceAuthorizationHandoverConditionRequest(
     @get:Schema(title = "资源类型")
     override val resourceType: String,
     @get:Schema(title = "资源名称")
-    override val resourceName: String?,
+    override val resourceName: String? = null,
     @get:Schema(title = "授予人")
-    override val handoverFrom: String?,
+    override val handoverFrom: String? = null,
     @get:Schema(title = "greaterThanHandoverTime")
-    override val greaterThanHandoverTime: Long?,
+    override val greaterThanHandoverTime: Long? = null,
     @get:Schema(title = "lessThanHandoverTime")
-    override val lessThanHandoverTime: Long?,
+    override val lessThanHandoverTime: Long? = null,
     @Parameter(description = "第几页", required = false)
-    override val page: Int?,
+    override val page: Int? = null,
     @Parameter(description = "每页条数", required = false)
-    override val pageSize: Int?,
+    override val pageSize: Int? = null,
     @get:Schema(title = "是否全量选择")
     val fullSelection: Boolean = false,
     @get:Schema(title = "资源权限交接列表")
@@ -29,7 +29,7 @@ data class ResourceAuthorizationHandoverConditionRequest(
     @get:Schema(title = "交接渠道")
     val handoverChannel: HandoverChannelCode,
     @get:Schema(title = "交接人")
-    val handoverTo: String?,
+    val handoverTo: String? = null,
     @get:Schema(title = "是否为预检查，若为true,不做权限交接；")
     val preCheck: Boolean = false
 ) : ResourceAuthorizationConditionRequest(

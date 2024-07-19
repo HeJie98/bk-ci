@@ -28,12 +28,17 @@
 
 package com.tencent.devops.auth.api.user
 
+import com.tencent.devops.auth.pojo.vo.ResourceTypeInfoVo
 import com.tencent.devops.common.api.auth.AUTH_HEADER_USER_ID
+import com.tencent.devops.common.api.auth.AUTH_HEADER_USER_ID_DEFAULT_VALUE
 import com.tencent.devops.common.api.model.SQLPage
-import com.tencent.devops.common.api.pojo.Pagination
 import com.tencent.devops.common.api.pojo.Result
+import com.tencent.devops.common.auth.api.pojo.ResetAllResourceAuthorizationReq
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationConditionRequest
+import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverConditionRequest
+import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverDTO
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationResponse
+import com.tencent.devops.common.auth.enums.ResourceAuthorizationHandoverStatus
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -84,4 +89,32 @@ interface UserAuthAuthorizationResource {
         @QueryParam("resourceCode")
         resourceCode: String
     ): Result<ResourceAuthorizationResponse>
+
+    @GET
+    @Path("/{projectId}/resetResourceAuthorization")
+    @Operation(summary = "重置资源授权管理")
+    fun resetResourceAuthorization(
+        @Parameter(description = "用户ID", required = true, example = AUTH_HEADER_USER_ID_DEFAULT_VALUE)
+        @HeaderParam(AUTH_HEADER_USER_ID)
+        userId: String,
+        @Parameter(description = "项目ID", required = true)
+        @PathParam("projectId")
+        projectId: String,
+        @Parameter(description = "资源授权交接条件实体", required = true)
+        condition: ResourceAuthorizationHandoverConditionRequest
+    ): Result<Map<ResourceAuthorizationHandoverStatus, List<ResourceAuthorizationHandoverDTO>>>
+
+    @GET
+    @Path("/{projectId}/resetAllResourceAuthorization")
+    @Operation(summary = "重置资源授权管理")
+    fun resetAllResourceAuthorization(
+        @Parameter(description = "用户ID", required = true, example = AUTH_HEADER_USER_ID_DEFAULT_VALUE)
+        @HeaderParam(AUTH_HEADER_USER_ID)
+        userId: String,
+        @Parameter(description = "项目ID", required = true)
+        @PathParam("projectId")
+        projectId: String,
+        @Parameter(description = "资源授权交接条件实体", required = true)
+        condition: ResetAllResourceAuthorizationReq
+    ): Result<List<ResourceTypeInfoVo>>
 }

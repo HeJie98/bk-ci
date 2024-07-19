@@ -203,7 +203,8 @@ class RbacAuthConfiguration {
         dslContext: DSLContext,
         deptService: DeptService,
         rbacCacheService: RbacCacheService,
-        resourceGroupService: PermissionResourceGroupService
+        resourceGroupService: PermissionResourceGroupService,
+        permissionAuthorizationService: PermissionAuthorizationService
     ) = RbacPermissionResourceMemberService(
         authResourceService = authResourceService,
         iamV2ManagerService = iamV2ManagerService,
@@ -212,7 +213,8 @@ class RbacAuthConfiguration {
         dslContext = dslContext,
         deptService = deptService,
         rbacCacheService = rbacCacheService,
-        resourceGroupService = resourceGroupService
+        resourceGroupService = resourceGroupService,
+        permissionAuthorizationService = permissionAuthorizationService
     )
 
     @Bean

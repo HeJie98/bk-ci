@@ -26,6 +26,7 @@ import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.MemberGroupCountWithPermissionsVo
 import com.tencent.devops.auth.pojo.vo.ResourceMemberCountVO
 import com.tencent.devops.auth.service.DeptService
+import com.tencent.devops.auth.service.PermissionAuthorizationService
 import com.tencent.devops.auth.service.iam.PermissionResourceGroupService
 import com.tencent.devops.auth.service.iam.PermissionResourceMemberService
 import com.tencent.devops.common.api.exception.ErrorCodeException
@@ -35,6 +36,7 @@ import com.tencent.devops.common.api.util.PageUtil
 import com.tencent.devops.common.auth.api.AuthResourceType
 import com.tencent.devops.common.auth.api.pojo.BkAuthGroup
 import com.tencent.devops.common.auth.api.pojo.BkAuthGroupAndUserList
+import com.tencent.devops.common.auth.api.pojo.ResetAllResourceAuthorizationReq
 import com.tencent.devops.common.service.utils.RetryUtils
 import com.tencent.devops.common.web.utils.I18nUtil
 import com.tencent.devops.project.constant.ProjectMessageCode
@@ -54,7 +56,8 @@ class RbacPermissionResourceMemberService constructor(
     private val dslContext: DSLContext,
     private val deptService: DeptService,
     private val rbacCacheService: RbacCacheService,
-    private val resourceGroupService: PermissionResourceGroupService
+    private val resourceGroupService: PermissionResourceGroupService,
+    private val permissionAuthorizationService: PermissionAuthorizationService
 ) : PermissionResourceMemberService {
     override fun getResourceGroupMembers(
         projectCode: String,
@@ -736,6 +739,17 @@ class RbacPermissionResourceMemberService constructor(
                     conditionReq = handoverMemberDTO,
                     operateGroupMemberTask = ::handoverTask
                 )
+                permissionAuthorizationService.resetAllResourceAuthorization(
+                    operator = userId,
+                    projectCode = projectCode,
+                    condition = ResetAllResourceAuthorizationReq(
+                        projectCode = projectCode,
+                        handoverFrom = removeMemberFromProjectReq.targetMember.id,
+                        handoverTo = removeMemberFromProjectReq.handoverTo!!.id,
+                        preCheck = false
+                    )
+                )
+
             } else {
                 val removeMemberDTO = GroupMemberCommonConditionReq(
                     allSelection = true,

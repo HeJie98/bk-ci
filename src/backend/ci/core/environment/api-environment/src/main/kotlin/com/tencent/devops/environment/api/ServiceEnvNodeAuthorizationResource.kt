@@ -27,39 +27,35 @@
 
 package com.tencent.devops.environment.api
 
-import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationDTO
-import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverConditionRequest
-import com.tencent.devops.common.api.auth.AUTH_HEADER_USER_ID
-import com.tencent.devops.common.api.auth.AUTH_HEADER_USER_ID_DEFAULT_VALUE
 import com.tencent.devops.common.api.pojo.Result
+import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverDTO
 import com.tencent.devops.common.auth.enums.ResourceAuthorizationHandoverStatus
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import javax.ws.rs.Consumes
-import javax.ws.rs.HeaderParam
 import javax.ws.rs.POST
 import javax.ws.rs.Path
 import javax.ws.rs.PathParam
 import javax.ws.rs.Produces
 import javax.ws.rs.core.MediaType
 
-@Tag(name = "USER_AUTHORIZATION", description = "环境授权管理")
-@Path("/user/environment/authorization")
+@Tag(name = "SERVICE_AUTHORIZATION", description = "环境节点授权管理")
+@Path("/service/env/node/authorization")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-interface UserEnvironmentAuthorizationResource {
+interface ServiceEnvNodeAuthorizationResource {
     @Operation(summary = "重置环境节点授权管理")
     @POST
-    @Path("/{projectId}/resetEnvNodeAuthorization")
+    @Path("/{projectId}/resetEnvNodeAuthorization/{preCheck}")
     fun resetEnvNodeAuthorization(
-        @Parameter(description = "用户ID", required = true, example = AUTH_HEADER_USER_ID_DEFAULT_VALUE)
-        @HeaderParam(AUTH_HEADER_USER_ID)
-        userId: String,
         @Parameter(description = "项目ID", required = true)
         @PathParam("projectId")
         projectId: String,
-        @Parameter(description = "资源授权交接条件实体", required = true)
-        condition: ResourceAuthorizationHandoverConditionRequest
-    ): Result<Map<ResourceAuthorizationHandoverStatus, List<ResourceAuthorizationDTO>>>
+        @Parameter(description = "是否为预检查", required = true)
+        @PathParam("preCheck")
+        preCheck: Boolean,
+        @Parameter(description = "请求体", required = true)
+        resourceAuthorizationHandoverDTOs: List<ResourceAuthorizationHandoverDTO>
+    ): Result<Map<ResourceAuthorizationHandoverStatus, List<ResourceAuthorizationHandoverDTO>>>
 }

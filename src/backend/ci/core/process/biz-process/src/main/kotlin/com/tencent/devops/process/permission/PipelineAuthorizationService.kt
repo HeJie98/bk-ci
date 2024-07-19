@@ -4,7 +4,6 @@ import com.tencent.devops.common.api.util.MessageUtil
 import com.tencent.devops.common.auth.api.AuthAuthorizationApi
 import com.tencent.devops.common.auth.api.AuthPermission
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationDTO
-import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverConditionRequest
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverDTO
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverResult
 import com.tencent.devops.common.auth.enums.ResourceAuthorizationHandoverStatus
@@ -29,39 +28,21 @@ class PipelineAuthorizationService constructor(
     }
 
     fun resetPipelineAuthorization(
-        userId: String,
         projectId: String,
-        condition: ResourceAuthorizationHandoverConditionRequest
-    ): Map<ResourceAuthorizationHandoverStatus, List<ResourceAuthorizationDTO>> {
-        logger.info("user reset pipeline authorization|$userId|$projectId|$condition")
+        preCheck: Boolean,
+        resourceAuthorizationHandoverDTOs: List<ResourceAuthorizationHandoverDTO>
+    ): Map<ResourceAuthorizationHandoverStatus, List<ResourceAuthorizationHandoverDTO>> {
+        logger.info("reset pipeline authorization|$preCheck|$projectId|$resourceAuthorizationHandoverDTOs")
         return authAuthorizationApi.resetResourceAuthorization(
-            operator = userId,
             projectId = projectId,
-            condition = condition,
-            validateSingleResourcePermission = ::validateSingleResourcePermission,
+            preCheck = preCheck,
+            resourceAuthorizationHandoverDTOs = resourceAuthorizationHandoverDTOs,
             handoverResourceAuthorization = ::handoverPipelineAuthorization
         )
     }
 
-    private fun validateSingleResourcePermission(
-        operator: String,
-        projectCode: String,
-        resourceCode: String
-    ) {
-        pipelinePermissionService.validPipelinePermission(
-            userId = operator,
-            projectId = projectCode,
-            permission = AuthPermission.MANAGE,
-            pipelineId = resourceCode,
-            message = MessageUtil.getMessageByLocale(
-                messageCode = ProcessMessageCode.USER_NEED_PIPELINE_X_PERMISSION,
-                params = arrayOf(AuthPermission.MANAGE.getI18n(I18nUtil.getLanguage(operator))),
-                language = I18nUtil.getLanguage(operator)
-            )
-        )
-    }
-
     private fun handoverPipelineAuthorization(
+        preCheck: Boolean,
         resourceAuthorizationHandoverDTO: ResourceAuthorizationHandoverDTO
     ): ResourceAuthorizationHandoverResult {
         return with(resourceAuthorizationHandoverDTO) {

@@ -1,27 +1,26 @@
 package com.tencent.devops.repository.resources
 
 import com.tencent.devops.common.api.pojo.Result
-import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationDTO
-import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverConditionRequest
+import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverDTO
 import com.tencent.devops.common.auth.enums.ResourceAuthorizationHandoverStatus
 import com.tencent.devops.common.web.RestResource
-import com.tencent.devops.repository.api.UserRepositoryAuthorizationResource
+import com.tencent.devops.repository.api.ServiceRepositoryAuthorizationResource
 import com.tencent.devops.repository.service.permission.RepositoryAuthorizationService
 
 @RestResource
-class UserRepositoryAuthorizationResourceImpl constructor(
+class ServiceRepositoryAuthorizationResourceImpl constructor(
     private val repositoryAuthorizationService: RepositoryAuthorizationService
-) : UserRepositoryAuthorizationResource {
+) : ServiceRepositoryAuthorizationResource {
     override fun resetRepositoryAuthorization(
-        userId: String,
         projectId: String,
-        condition: ResourceAuthorizationHandoverConditionRequest
-    ): Result<Map<ResourceAuthorizationHandoverStatus, List<ResourceAuthorizationDTO>>> {
+        preCheck: Boolean,
+        resourceAuthorizationHandoverDTOs: List<ResourceAuthorizationHandoverDTO>
+    ): Result<Map<ResourceAuthorizationHandoverStatus, List<ResourceAuthorizationHandoverDTO>>> {
         return Result(
             repositoryAuthorizationService.resetRepositoryAuthorization(
-                userId = userId,
                 projectId = projectId,
-                condition = condition
+                preCheck = preCheck,
+                resourceAuthorizationHandoverDTOs = resourceAuthorizationHandoverDTOs
             )
         )
     }

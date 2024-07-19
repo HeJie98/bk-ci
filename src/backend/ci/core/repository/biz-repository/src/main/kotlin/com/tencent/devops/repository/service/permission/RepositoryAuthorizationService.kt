@@ -9,7 +9,6 @@ import com.tencent.devops.common.api.util.MessageUtil
 import com.tencent.devops.common.auth.api.AuthAuthorizationApi
 import com.tencent.devops.common.auth.api.AuthPermission
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationDTO
-import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverConditionRequest
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverDTO
 import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverResult
 import com.tencent.devops.common.auth.enums.ResourceAuthorizationHandoverStatus
@@ -19,6 +18,7 @@ import com.tencent.devops.repository.service.RepositoryService
 import com.tencent.devops.repository.service.RepositoryUserService
 import com.tencent.devops.repository.service.github.GithubTokenService
 import com.tencent.devops.repository.service.scm.GitOauthService
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 @Service
@@ -50,54 +50,31 @@ class RepositoryAuthorizationService constructor(
     }
 
     fun resetRepositoryAuthorization(
-        userId: String,
         projectId: String,
-        condition: ResourceAuthorizationHandoverConditionRequest
-    ): Map<ResourceAuthorizationHandoverStatus, List<ResourceAuthorizationDTO>> {
-        val preCheck = condition.preCheck
+        preCheck: Boolean,
+        resourceAuthorizationHandoverDTOs: List<ResourceAuthorizationHandoverDTO>
+    ): Map<ResourceAuthorizationHandoverStatus, List<ResourceAuthorizationHandoverDTO>> {
+        logger.info("reset repository authorization|$preCheck|$projectId|$resourceAuthorizationHandoverDTOs")
         return authAuthorizationApi.resetResourceAuthorization(
-            operator = userId,
             projectId = projectId,
-            condition = condition,
-            validateSingleResourcePermission = ::validateSingleResourcePermission,
-            handoverResourceAuthorization = if (preCheck) {
-                ::handoverRepositoryAuthorizationCheck
-            } else {
-                ::handoverRepositoryAuthorization
-            }
+            preCheck = preCheck,
+            resourceAuthorizationHandoverDTOs = resourceAuthorizationHandoverDTOs,
+            handoverResourceAuthorization = ::handoverRepositoryAuthorization
         )
     }
 
-    private fun validateSingleResourcePermission(
-        operator: String,
-        projectCode: String,
-        // 代码库hashID
-        resourceCode: String
-    ) {
-        val repositoryId = HashUtil.decodeOtherIdToLong(resourceCode)
-        repositoryService.validatePermission(
-            user = operator,
-            projectId = projectCode,
-            repositoryId = repositoryId,
-            authPermission = AuthPermission.EDIT,
-            message = MessageUtil.getMessageByLocale(
-                messageCode = RepositoryMessageCode.USER_EDIT_PEM_ERROR,
-                params = arrayOf(operator, projectCode, resourceCode),
-                language = I18nUtil.getLanguage(operator)
-            )
-        )
-    }
-
-    private fun handoverRepositoryAuthorizationCheck(
+    private fun handoverRepositoryAuthorization(
+        preCheck: Boolean,
         resourceAuthorizationHandoverDTO: ResourceAuthorizationHandoverDTO
     ): ResourceAuthorizationHandoverResult {
         with(resourceAuthorizationHandoverDTO) {
             val handoverTo = handoverTo!!
             try {
-                validateSingleResourcePermission(
-                    operator = handoverTo,
-                    projectCode = projectCode,
-                    resourceCode = resourceCode
+                validateResourcePermission(
+                    userId = resourceAuthorizationHandoverDTO.handoverTo!!,
+                    projectCode = resourceAuthorizationHandoverDTO.projectCode,
+                    resourceName = resourceAuthorizationHandoverDTO.resourceName,
+                    resourceCode = resourceAuthorizationHandoverDTO.resourceCode
                 )
                 // Check if the grantor has used oauth
                 val isUsedOauth = repositoryService.serviceGet(
@@ -123,6 +100,13 @@ class RepositoryAuthorizationService constructor(
                         )
                     )
                 }
+                if (!preCheck) {
+                    repositoryUserService.updateRepositoryUserInfo(
+                        userId = handoverTo,
+                        projectCode = projectCode,
+                        repositoryHashId = resourceCode,
+                    )
+                }
             } catch (ignore: Exception) {
                 return ResourceAuthorizationHandoverResult(
                     status = ResourceAuthorizationHandoverStatus.FAILED,
@@ -138,19 +122,29 @@ class RepositoryAuthorizationService constructor(
         }
     }
 
-    private fun handoverRepositoryAuthorization(
-        resourceAuthorizationHandoverDTO: ResourceAuthorizationHandoverDTO
-    ): ResourceAuthorizationHandoverResult {
-        return with(resourceAuthorizationHandoverDTO) {
-            val result = handoverRepositoryAuthorizationCheck(this)
-            if (result.status == ResourceAuthorizationHandoverStatus.SUCCESS) {
-                repositoryUserService.updateRepositoryUserInfo(
-                    userId = handoverTo!!,
-                    projectCode = projectCode,
-                    repositoryHashId = resourceCode,
-                )
-            }
-            result
-        }
+
+    private fun validateResourcePermission(
+        userId: String,
+        projectCode: String,
+        resourceName: String,
+        // 代码库hashID
+        resourceCode: String
+    ) {
+        val repositoryId = HashUtil.decodeOtherIdToLong(resourceCode)
+        repositoryService.validatePermission(
+            user = userId,
+            projectId = projectCode,
+            repositoryId = repositoryId,
+            authPermission = AuthPermission.EDIT,
+            message = MessageUtil.getMessageByLocale(
+                messageCode = RepositoryMessageCode.USER_EDIT_PEM_ERROR,
+                params = arrayOf(userId, projectCode, resourceName),
+                language = I18nUtil.getLanguage(userId)
+            )
+        )
+    }
+
+    companion object {
+        private val logger = LoggerFactory.getLogger(RepositoryAuthorizationService::class.java)
     }
 }
