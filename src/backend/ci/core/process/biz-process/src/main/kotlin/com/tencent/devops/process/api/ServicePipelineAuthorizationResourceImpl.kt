@@ -1,27 +1,26 @@
 package com.tencent.devops.process.api
 
-import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationDTO
-import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverConditionRequest
 import com.tencent.devops.common.api.pojo.Result
+import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverDTO
 import com.tencent.devops.common.auth.enums.ResourceAuthorizationHandoverStatus
 import com.tencent.devops.common.web.RestResource
-import com.tencent.devops.process.api.user.UserPipelineAuthorizationResource
+import com.tencent.devops.process.api.service.ServicePipelineAuthorizationResource
 import com.tencent.devops.process.permission.PipelineAuthorizationService
 
 @RestResource
-class UserPipelineAuthorizationResourceImpl constructor(
+class ServicePipelineAuthorizationResourceImpl constructor(
     private val pipelineAuthorizationService: PipelineAuthorizationService
-) : UserPipelineAuthorizationResource {
+) : ServicePipelineAuthorizationResource {
     override fun resetPipelineAuthorization(
-        userId: String,
         projectId: String,
-        condition: ResourceAuthorizationHandoverConditionRequest
-    ): Result<Map<ResourceAuthorizationHandoverStatus, List<ResourceAuthorizationDTO>>> {
+        preCheck: Boolean,
+        resourceAuthorizationHandoverDTOs: List<ResourceAuthorizationHandoverDTO>
+    ): Result<Map<ResourceAuthorizationHandoverStatus, List<ResourceAuthorizationHandoverDTO>>> {
         return Result(
             pipelineAuthorizationService.resetPipelineAuthorization(
-                userId = userId,
                 projectId = projectId,
-                condition = condition
+                preCheck = preCheck,
+                resourceAuthorizationHandoverDTOs = resourceAuthorizationHandoverDTOs
             )
         )
     }
