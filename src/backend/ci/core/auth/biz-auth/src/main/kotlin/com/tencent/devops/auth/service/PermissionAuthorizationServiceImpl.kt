@@ -169,7 +169,8 @@ class PermissionAuthorizationServiceImpl constructor(
                     handoverFrom = condition.handoverFrom,
                     fullSelection = true,
                     preCheck = condition.preCheck,
-                    handoverChannel = HandoverChannelCode.MANAGER
+                    handoverChannel = HandoverChannelCode.MANAGER,
+                    handoverTo = condition.handoverTo
                 )
             )
             if (!handoverResult[ResourceAuthorizationHandoverStatus.FAILED].isNullOrEmpty()) {
