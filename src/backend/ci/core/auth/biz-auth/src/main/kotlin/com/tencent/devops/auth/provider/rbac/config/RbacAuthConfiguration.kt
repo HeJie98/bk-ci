@@ -62,6 +62,7 @@ import com.tencent.devops.auth.provider.rbac.service.RbacPermissionItsmCallbackS
 import com.tencent.devops.auth.provider.rbac.service.RbacPermissionProjectService
 import com.tencent.devops.auth.provider.rbac.service.RbacPermissionResourceCallbackService
 import com.tencent.devops.auth.provider.rbac.service.RbacPermissionResourceGroupService
+import com.tencent.devops.auth.provider.rbac.service.RbacPermissionResourceGroupSyncService
 import com.tencent.devops.auth.provider.rbac.service.RbacPermissionResourceMemberService
 import com.tencent.devops.auth.provider.rbac.service.RbacPermissionResourceService
 import com.tencent.devops.auth.provider.rbac.service.RbacPermissionResourceValidateService
@@ -76,7 +77,6 @@ import com.tencent.devops.auth.provider.rbac.service.migrate.MigrateResultServic
 import com.tencent.devops.auth.provider.rbac.service.migrate.MigrateV0PolicyService
 import com.tencent.devops.auth.provider.rbac.service.migrate.MigrateV3PolicyService
 import com.tencent.devops.auth.provider.rbac.service.migrate.RbacPermissionMigrateService
-import com.tencent.devops.auth.provider.rbac.service.RbacPermissionResourceGroupSyncService
 import com.tencent.devops.auth.service.AuthMonitorSpaceService
 import com.tencent.devops.auth.service.AuthProjectUserMetricsService
 import com.tencent.devops.auth.service.AuthVerifyRecordService
@@ -85,10 +85,10 @@ import com.tencent.devops.auth.service.PermissionAuthorizationService
 import com.tencent.devops.auth.service.ResourceService
 import com.tencent.devops.auth.service.SuperManagerService
 import com.tencent.devops.auth.service.iam.MigrateCreatorFixService
-import com.tencent.devops.auth.service.iam.PermissionProjectService
 import com.tencent.devops.auth.service.iam.PermissionResourceGroupService
 import com.tencent.devops.auth.service.iam.PermissionResourceMemberService
 import com.tencent.devops.auth.service.iam.PermissionResourceService
+import com.tencent.devops.auth.service.iam.PermissionResourceValidateService
 import com.tencent.devops.auth.service.iam.PermissionService
 import com.tencent.devops.common.auth.api.AuthTokenApi
 import com.tencent.devops.common.auth.code.ProjectAuthServiceCode
@@ -147,23 +147,19 @@ class RbacAuthConfiguration {
         permissionGradeManagerService: PermissionGradeManagerService,
         permissionSubsetManagerService: PermissionSubsetManagerService,
         authResourceCodeConverter: AuthResourceCodeConverter,
-        permissionService: PermissionService,
-        rbacCacheService: RbacCacheService,
         traceEventDispatcher: TraceEventDispatcher,
         iamV2ManagerService: V2ManagerService,
-        client: Client,
-        permissionAuthorizationService: PermissionAuthorizationService
+        permissionAuthorizationService: PermissionAuthorizationService,
+        permissionResourceValidateService: PermissionResourceValidateService
     ) = RbacPermissionResourceService(
         authResourceService = authResourceService,
         permissionGradeManagerService = permissionGradeManagerService,
         permissionSubsetManagerService = permissionSubsetManagerService,
         authResourceCodeConverter = authResourceCodeConverter,
-        permissionService = permissionService,
-        rbacCacheService = rbacCacheService,
         traceEventDispatcher = traceEventDispatcher,
         iamV2ManagerService = iamV2ManagerService,
-        client = client,
-        permissionAuthorizationService = permissionAuthorizationService
+        permissionAuthorizationService = permissionAuthorizationService,
+        permissionResourceValidateService = permissionResourceValidateService
     )
 
     @Bean
@@ -325,10 +321,12 @@ class RbacAuthConfiguration {
     @Primary
     fun rbacPermissionResourceValidateService(
         permissionService: PermissionService,
-        rbacCacheService: RbacCacheService
+        rbacCacheService: RbacCacheService,
+        client: Client
     ) = RbacPermissionResourceValidateService(
         permissionService = permissionService,
-        rbacCacheService = rbacCacheService
+        rbacCacheService = rbacCacheService,
+        client = client
     )
 
     @Bean

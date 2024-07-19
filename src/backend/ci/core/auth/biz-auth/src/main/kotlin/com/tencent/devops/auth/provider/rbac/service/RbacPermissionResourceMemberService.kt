@@ -153,15 +153,18 @@ class RbacPermissionResourceMemberService constructor(
         page: Int,
         pageSize: Int
     ): SQLPage<ResourceMemberInfo> {
-        // TODO 需要补充搜索条件,部门和用户应该不能同时搜索
         val count = authResourceGroupMemberDao.countResourceMember(
             dslContext = dslContext,
-            projectCode = projectCode
+            projectCode = projectCode,
+            userName = userName,
+            deptName = deptName,
         )
         val limit = PageUtil.convertPageSizeToSQLLimit(page, pageSize)
         val records = authResourceGroupMemberDao.listResourceMember(
             dslContext = dslContext,
             projectCode = projectCode,
+            userName = userName,
+            deptName = deptName,
             offset = limit.offset,
             limit = limit.limit
         )

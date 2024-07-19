@@ -4,7 +4,7 @@ import com.tencent.devops.auth.constant.AuthI18nConstants
 import com.tencent.devops.auth.constant.AuthMessageCode
 import com.tencent.devops.auth.dao.AuthAuthorizationDao
 import com.tencent.devops.auth.pojo.vo.ResourceTypeInfoVo
-import com.tencent.devops.auth.service.iam.PermissionResourceService
+import com.tencent.devops.auth.service.iam.PermissionResourceValidateService
 import com.tencent.devops.common.api.exception.ErrorCodeException
 import com.tencent.devops.common.api.model.SQLPage
 import com.tencent.devops.common.auth.api.AuthResourceType
@@ -29,8 +29,8 @@ import org.springframework.stereotype.Service
 class PermissionAuthorizationServiceImpl constructor(
     private val dslContext: DSLContext,
     private val authAuthorizationDao: AuthAuthorizationDao,
-    private val permissionResourceService: PermissionResourceService,
-    private val client: Client
+    private val client: Client,
+    private val permissionResourceValidateService: PermissionResourceValidateService
 ) : PermissionAuthorizationService {
     companion object {
         private val logger = LoggerFactory.getLogger(PermissionAuthorizationServiceImpl::class.java)
@@ -192,7 +192,7 @@ class PermissionAuthorizationServiceImpl constructor(
     ) {
         // 若是在授权管理界面操作，则只要校验操作人是否为管理员即可
         if (condition.handoverChannel == HandoverChannelCode.MANAGER) {
-            permissionResourceService.hasManagerPermission(
+            permissionResourceValidateService.hasManagerPermission(
                 userId = operator,
                 projectId = condition.projectCode,
                 resourceType = AuthResourceType.PROJECT.value,
@@ -200,7 +200,7 @@ class PermissionAuthorizationServiceImpl constructor(
             )
         } else {
             val record = condition.resourceAuthorizationHandoverList.first()
-            permissionResourceService.hasManagerPermission(
+            permissionResourceValidateService.hasManagerPermission(
                 userId = operator,
                 projectId = record.projectCode,
                 resourceType = record.resourceType,

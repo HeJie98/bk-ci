@@ -86,13 +86,6 @@ class SamplePermissionResourceService constructor(
         resourceCode: String
     ) = true
 
-    override fun hasManagerPermission(
-        userId: String,
-        projectId: String,
-        resourceType: String,
-        resourceCode: String
-    ) = true
-
     override fun isEnablePermission(
         userId: String,
         projectId: String,
