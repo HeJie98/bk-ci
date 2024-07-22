@@ -48,7 +48,7 @@ interface UserAuthResourceMemberResource {
         @QueryParam("userName")
         userName: String?,
         @Parameter(description = "组织搜索")
-        @QueryParam("userName")
+        @QueryParam("deptName")
         deptName: String?,
         @Parameter(description = "第几页")
         @QueryParam("page")
