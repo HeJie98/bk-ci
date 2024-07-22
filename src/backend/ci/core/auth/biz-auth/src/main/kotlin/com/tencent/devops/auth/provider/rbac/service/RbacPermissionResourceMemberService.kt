@@ -178,16 +178,6 @@ class RbacPermissionResourceMemberService constructor(
         return SQLPage(count = count, records = records)
     }
 
-    override fun getMemberGroups(
-        projectCode: String,
-        resourceType: String,
-        member: String,
-        start: Int,
-        end: Int
-    ): List<Int> {
-        TODO("Not yet implemented")
-    }
-
     override fun getMemberGroupsCount(
         projectCode: String,
         memberId: String
@@ -215,28 +205,34 @@ class RbacPermissionResourceMemberService constructor(
         )
         val memberGroupCountList = mutableListOf<MemberGroupCountWithPermissionsVo>()
         // 项目排在第一位
-        memberGroupCountList.add(
-            MemberGroupCountWithPermissionsVo(
-                resourceType = AuthResourceType.PROJECT.value,
-                resourceTypeName = I18nUtil.getCodeLanMessage(
-                    messageCode = AuthResourceType.PROJECT.value + AuthI18nConstants.RESOURCE_TYPE_NAME_SUFFIX
-                ),
-                count = memberGroupCountMap[AuthResourceType.PROJECT.value] ?: 0
+        memberGroupCountMap[AuthResourceType.PROJECT.value]?.let { projectCount ->
+            memberGroupCountList.add(
+                MemberGroupCountWithPermissionsVo(
+                    resourceType = AuthResourceType.PROJECT.value,
+                    resourceTypeName = I18nUtil.getCodeLanMessage(
+                        messageCode = AuthResourceType.PROJECT.value + AuthI18nConstants.RESOURCE_TYPE_NAME_SUFFIX
+                    ),
+                    count = projectCount
+                )
             )
-        )
+        }
+
         rbacCacheService.listResourceTypes()
             .filter { it.resourceType != AuthResourceType.PROJECT.value }
             .forEach { resourceTypeInfoVo ->
-                val memberGroupCount = MemberGroupCountWithPermissionsVo(
-                    resourceType = resourceTypeInfoVo.resourceType,
-                    resourceTypeName = I18nUtil.getCodeLanMessage(
-                        messageCode = resourceTypeInfoVo.resourceType + AuthI18nConstants.RESOURCE_TYPE_NAME_SUFFIX,
-                        defaultMessage = resourceTypeInfoVo.name
-                    ),
-                    count = memberGroupCountMap[resourceTypeInfoVo.resourceType] ?: 0
-                )
-                memberGroupCountList.add(memberGroupCount)
+                memberGroupCountMap[resourceTypeInfoVo.resourceType]?.let { count ->
+                    val memberGroupCount = MemberGroupCountWithPermissionsVo(
+                        resourceType = resourceTypeInfoVo.resourceType,
+                        resourceTypeName = I18nUtil.getCodeLanMessage(
+                            messageCode = resourceTypeInfoVo.resourceType + AuthI18nConstants.RESOURCE_TYPE_NAME_SUFFIX,
+                            defaultMessage = resourceTypeInfoVo.name
+                        ),
+                        count = count
+                    )
+                    memberGroupCountList.add(memberGroupCount)
+                }
             }
+
         return memberGroupCountList
     }
 

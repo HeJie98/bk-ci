@@ -55,7 +55,7 @@ import com.tencent.devops.auth.pojo.dto.GroupAddDTO
 import com.tencent.devops.auth.pojo.dto.ListGroupConditionDTO
 import com.tencent.devops.auth.pojo.dto.RenameGroupDTO
 import com.tencent.devops.auth.pojo.enum.GroupMemberStatus
-import com.tencent.devops.auth.pojo.enum.OperateSource
+import com.tencent.devops.auth.pojo.enum.JoinedType
 import com.tencent.devops.auth.pojo.enum.RemoveMemberButtonControl
 import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.GroupPermissionDetailVo
@@ -63,10 +63,8 @@ import com.tencent.devops.auth.pojo.vo.IamGroupInfoVo
 import com.tencent.devops.auth.pojo.vo.IamGroupMemberInfoVo
 import com.tencent.devops.auth.pojo.vo.IamGroupPoliciesVo
 import com.tencent.devops.auth.service.AuthMonitorSpaceService
-import com.tencent.devops.auth.service.iam.PermissionProjectService
 import com.tencent.devops.auth.service.iam.PermissionResourceGroupService
 import com.tencent.devops.common.api.exception.ErrorCodeException
-import com.tencent.devops.common.api.exception.PermissionForbiddenException
 import com.tencent.devops.common.api.model.SQLPage
 import com.tencent.devops.common.api.pojo.Pagination
 import com.tencent.devops.common.api.util.DateTimeUtil
@@ -204,7 +202,6 @@ class RbacPermissionResourceGroupService @Autowired constructor(
             )
             val userCount = projectMemberCount[ManagerScopesEnum.getType(ManagerScopesEnum.USER)] ?: 0
             val departmentCount = projectMemberCount[ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT)] ?: 0
-            // 从数据库中获取数据
             val allProjectMemberGroup = IamGroupInfoVo(
                 managerId = managerId,
                 defaultGroup = true,
@@ -659,7 +656,10 @@ class RbacPermissionResourceGroupService @Autowired constructor(
                     else ->
                         RemoveMemberButtonControl.OTHER
                 },
-                operateSource = OperateSource.API,
+                joinedType = when (it.memberType) {
+                    ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE) -> JoinedType.TEMPLATE
+                    else -> JoinedType.DIRECT
+                },
                 operator = ""
             )
         }

@@ -53,17 +53,6 @@ interface PermissionResourceMemberService {
     ): SQLPage<ResourceMemberInfo>
 
     /**
-     * 获取用户有权限的用户组
-     * */
-    fun getMemberGroups(
-        projectCode: String,
-        resourceType: String,
-        member: String,
-        start: Int,
-        end: Int
-    ): List<Int>
-
-    /**
      * 获取用户有权限的用户组数量
      * */
     fun getMemberGroupsCount(

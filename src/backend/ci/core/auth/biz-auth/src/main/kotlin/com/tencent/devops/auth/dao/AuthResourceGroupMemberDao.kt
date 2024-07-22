@@ -31,12 +31,16 @@ import com.tencent.bk.sdk.iam.constants.ManagerScopesEnum
 import com.tencent.devops.auth.pojo.AuthResourceGroupMember
 import com.tencent.devops.auth.pojo.ResourceMemberInfo
 import com.tencent.devops.common.auth.api.pojo.BkAuthGroup
+import com.tencent.devops.model.auth.tables.TAuthResourceAuthorization
 import com.tencent.devops.model.auth.tables.TAuthResourceGroupMember
 import com.tencent.devops.model.auth.tables.records.TAuthResourceGroupMemberRecord
 import org.jooq.Condition
 import org.jooq.DSLContext
+import org.jooq.Table
 import org.jooq.impl.DSL.count
 import org.jooq.impl.DSL.countDistinct
+import org.jooq.impl.DSL.field
+import org.jooq.impl.DSL.inline
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
 
@@ -261,24 +265,53 @@ class AuthResourceGroupMemberDao {
         offset: Int,
         limit: Int
     ): List<ResourceMemberInfo> {
-        return with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
-            dslContext.select(MEMBER_ID, MEMBER_NAME, MEMBER_TYPE)
-                .from(this)
-                .where(
-                    buildResourceMemberConditions(
-                        projectCode = projectCode,
-                        memberType = memberType,
-                        userName = userName,
-                        deptName = deptName
-                    )
+        val resourceMemberUnionAuthorizationMember = createResourceMemberUnionAuthorizationMember(
+            dslContext = dslContext,
+            projectCode = projectCode
+        )
+
+        return dslContext
+            .select(
+                field(MEMBER_ID, String::class.java),
+                field(MEMBER_NAME, String::class.java),
+                field(MEMBER_TYPE, String::class.java)
+            )
+            .from(resourceMemberUnionAuthorizationMember)
+            .where(
+                buildResourceMemberConditions(
+                    memberType = memberType,
+                    userName = userName,
+                    deptName = deptName
                 )
-                .groupBy(MEMBER_ID, MEMBER_NAME, MEMBER_TYPE)
-                .orderBy(MEMBER_ID)
-                .offset(offset).limit(limit)
-                .fetch().map {
-                    ResourceMemberInfo(id = it.value1(), name = it.value2(), type = it.value3())
-                }
-        }
+            )
+            .groupBy(
+                field(MEMBER_ID),
+                field(MEMBER_NAME),
+                field(MEMBER_TYPE)
+            )
+            .orderBy(field(MEMBER_ID))
+            .offset(offset).limit(limit)
+            .fetch().map {
+                ResourceMemberInfo(id = it.value1(), name = it.value2(), type = it.value3())
+            }
+    }
+
+    fun countProjectMember(
+        dslContext: DSLContext,
+        projectCode: String
+    ): Map<String, Int> {
+        val resourceMemberUnionAuthorizationMember = createResourceMemberUnionAuthorizationMember(
+            dslContext = dslContext,
+            projectCode = projectCode
+        )
+
+        return dslContext.select(
+            field(MEMBER_TYPE, String::class.java),
+            countDistinct(field(MEMBER_ID, Long::class.java))
+        ).from(resourceMemberUnionAuthorizationMember)
+            .groupBy(field(MEMBER_TYPE, Long::class.java))
+            .fetch().map { Pair(it.value1(), it.value2()) }.toMap()
+
     }
 
     fun countResourceMember(
@@ -288,41 +321,68 @@ class AuthResourceGroupMemberDao {
         userName: String?,
         deptName: String?
     ): Long {
-        return with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
-            dslContext.select(countDistinct(MEMBER_ID)).from(this)
-                .where(
-                    buildResourceMemberConditions(
-                        projectCode = projectCode,
-                        memberType = memberType,
-                        userName = userName,
-                        deptName = deptName
-                    )
+        val resourceMemberUnionAuthorizationMember = createResourceMemberUnionAuthorizationMember(
+            dslContext = dslContext,
+            projectCode = projectCode
+        )
+        return dslContext
+            .select(countDistinct(field(MEMBER_ID, Long::class.java)))
+            .from(resourceMemberUnionAuthorizationMember)
+            .where(
+                buildResourceMemberConditions(
+                    memberType = memberType,
+                    userName = userName,
+                    deptName = deptName
                 )
-                .fetchOne(0, Long::class.java) ?: 0L
-        }
+            )
+            .fetchOne(0, Long::class.java) ?: 0L
+    }
+
+    fun createResourceMemberUnionAuthorizationMember(dslContext: DSLContext, projectCode: String): Table<*> {
+        val tResourceGroupMember = TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER
+        val tResourceAuthorization = TAuthResourceAuthorization.T_AUTH_RESOURCE_AUTHORIZATION
+
+        return dslContext
+            .select(
+                tResourceGroupMember.MEMBER_ID,
+                tResourceGroupMember.MEMBER_NAME,
+                tResourceGroupMember.MEMBER_TYPE
+            )
+            .from(tResourceGroupMember)
+            .where(tResourceGroupMember.PROJECT_CODE.eq(projectCode))
+            .and(tResourceGroupMember.MEMBER_TYPE.notEqual(ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE)))
+            .unionAll(
+                dslContext.select(
+                    tResourceAuthorization.HANDOVER_FROM.`as`("MEMBER_ID"),
+                    inline("").`as`("MEMBER_NAME"),
+                    inline("user").`as`("MEMBER_TYPE")
+                )
+                    .from(tResourceAuthorization)
+                    .where(tResourceAuthorization.PROJECT_CODE.eq(projectCode))
+            )
+            .asTable(TABLE_NAME)
     }
 
     fun buildResourceMemberConditions(
-        projectCode: String,
         memberType: String?,
         userName: String?,
         deptName: String?,
     ): MutableList<Condition> {
         val conditions = mutableListOf<Condition>()
-        with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
-            conditions.add(PROJECT_CODE.eq(projectCode))
-            conditions.add(MEMBER_TYPE.notEqual(ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE)))
-            if (memberType != null) {
-                conditions.add(MEMBER_TYPE.eq(memberType))
-            }
-            if (userName != null) {
-                conditions.add(MEMBER_TYPE.eq(ManagerScopesEnum.getType(ManagerScopesEnum.USER)))
-                conditions.add(MEMBER_ID.like("%${userName}%"))
-            }
-            if (deptName != null) {
-                conditions.add(MEMBER_TYPE.eq(ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT)))
-                conditions.add(MEMBER_NAME.like("%${deptName}%"))
-            }
+        val memberId = field(MEMBER_ID, String::class.java)
+        val memberTypeField = field(MEMBER_TYPE, String::class.java)
+        val memberName = field(MEMBER_NAME, String::class.java)
+
+        if (memberType != null) {
+            conditions.add(memberTypeField.eq(memberType))
+        }
+        if (userName != null) {
+            conditions.add(memberTypeField.eq(ManagerScopesEnum.getType(ManagerScopesEnum.USER)))
+            conditions.add(memberId.like("%${userName}%"))
+        }
+        if (deptName != null) {
+            conditions.add(memberTypeField.eq(ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT)))
+            conditions.add(memberName.like("%${deptName}%"))
         }
         return conditions
     }
@@ -342,18 +402,6 @@ class AuthResourceGroupMemberDao {
                 .fetch().map {
                     convert(it)
                 }
-        }
-    }
-
-    fun countProjectMember(
-        dslContext: DSLContext,
-        projectCode: String
-    ): Map<String, Int> {
-        return with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
-            dslContext.select(MEMBER_TYPE, countDistinct(MEMBER_ID)).from(this)
-                .where(PROJECT_CODE.eq(projectCode))
-                .groupBy(MEMBER_TYPE)
-                .fetch().map { Pair(it.value1(), it.value2()) }.toMap()
         }
     }
 
@@ -476,5 +524,12 @@ class AuthResourceGroupMemberDao {
                 expiredTime = expiredTime
             )
         }
+    }
+
+    companion object {
+        private const val TABLE_NAME = "resourceMemberUnionAuthorizationMember"
+        private const val MEMBER_ID = "$TABLE_NAME.MEMBER_ID"
+        private const val MEMBER_NAME = "$TABLE_NAME.MEMBER_NAME"
+        private const val MEMBER_TYPE = "$TABLE_NAME.MEMBER_TYPE"
     }
 }

@@ -127,16 +127,6 @@ class SamplePermissionResourceMemberService : PermissionResourceMemberService {
         return SQLPage(count = 0, records = emptyList())
     }
 
-    override fun getMemberGroups(
-        projectCode: String,
-        resourceType: String,
-        member: String,
-        start: Int,
-        end: Int
-    ): List<Int> {
-        TODO("Not yet implemented")
-    }
-
     override fun getMemberGroupsCount(
         projectCode: String,
         memberId: String

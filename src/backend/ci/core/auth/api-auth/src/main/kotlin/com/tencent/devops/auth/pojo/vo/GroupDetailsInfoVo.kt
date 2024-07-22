@@ -1,6 +1,6 @@
 package com.tencent.devops.auth.pojo.vo
 
-import com.tencent.devops.auth.pojo.enum.OperateSource
+import com.tencent.devops.auth.pojo.enum.JoinedType
 import com.tencent.devops.auth.pojo.enum.RemoveMemberButtonControl
 import io.swagger.v3.oas.annotations.media.Schema
 
@@ -26,8 +26,8 @@ data class GroupDetailsInfoVo(
     val joinedTime: Long,
     @get:Schema(title = "移除成员按钮控制")
     val removeMemberButtonControl: RemoveMemberButtonControl,
-    @get:Schema(title = "操作来源，直接加入/API加入")
-    val operateSource: OperateSource,
+    @get:Schema(title = "加入方式")
+    val joinedType: JoinedType,
     @get:Schema(title = "操作人")
     val operator: String
 )
