@@ -124,29 +124,18 @@ class RbacPermissionResourceMemberService constructor(
         }.map { it.get() }
     }
 
-    override fun getResourceMemberCount(
-        projectCode: String,
-        resourceType: String,
-        resourceCode: String
-    ): ResourceMemberCountVO {
-        if (resourceType == AuthResourceType.PROJECT.value) {
-            val projectMemberCount = authResourceGroupMemberDao.countProjectMember(
-                dslContext = dslContext,
-                projectCode = projectCode
-            )
-            // TODO 授权管理应该也需要补充
-            return ResourceMemberCountVO(
-                userCount = projectMemberCount[ManagerScopesEnum.getType(ManagerScopesEnum.USER)] ?: 0,
-                departmentCount = projectMemberCount[ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT)] ?: 0
-            )
-        }
+    override fun getProjectMemberCount(projectCode: String): ResourceMemberCountVO {
+        val projectMemberCount = authResourceGroupMemberDao.countProjectMember(
+            dslContext = dslContext,
+            projectCode = projectCode
+        )
         return ResourceMemberCountVO(
-            userCount = 0,
-            departmentCount = 0
+            userCount = projectMemberCount[ManagerScopesEnum.getType(ManagerScopesEnum.USER)] ?: 0,
+            departmentCount = projectMemberCount[ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT)] ?: 0
         )
     }
 
-    override fun listResourceMembers(
+    override fun listProjectMembers(
         projectCode: String,
         memberType: String?,
         userName: String?,
@@ -174,7 +163,22 @@ class RbacPermissionResourceMemberService constructor(
             deptName = deptName,
             offset = limit.offset,
             limit = limit.limit
-        )
+        ).map { record ->
+            // 由于资源授权数据表中未存储授权人用户名称，需要查询下用户接口
+            if (record.type == ManagerScopesEnum.getType(ManagerScopesEnum.USER) && record.name.isNullOrEmpty()) {
+                val newUserName = try {
+                    deptService.getMemberInfo(
+                        memberId = record.id,
+                        memberType = ManagerScopesEnum.USER
+                    ).name
+                } catch (ignore: Exception) {
+                    record.id
+                }
+                record.copy(name = newUserName)
+            } else {
+                record
+            }
+        }
         return SQLPage(count = count, records = records)
     }
 

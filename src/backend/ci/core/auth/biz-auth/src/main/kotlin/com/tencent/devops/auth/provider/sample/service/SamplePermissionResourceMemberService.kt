@@ -107,16 +107,13 @@ class SamplePermissionResourceMemberService : PermissionResourceMemberService {
         iamGroupId: Int
     ): Boolean = true
 
-    override fun getResourceMemberCount(
-        projectCode: String,
-        resourceType: String,
-        resourceCode: String
-    ): ResourceMemberCountVO = ResourceMemberCountVO(
-        userCount = 0,
-        departmentCount = 0
-    )
+    override fun getProjectMemberCount(projectCode: String): ResourceMemberCountVO =
+        ResourceMemberCountVO(
+            userCount = 0,
+            departmentCount = 0
+        )
 
-    override fun listResourceMembers(
+    override fun listProjectMembers(
         projectCode: String,
         memberType: String?,
         userName: String?,

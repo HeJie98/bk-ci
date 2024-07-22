@@ -29,21 +29,9 @@ interface PermissionResourceMemberService {
         resourceCode: String
     ): List<BkAuthGroupAndUserList>
 
-    /**
-     * 获取资源下全部成员数量
-     * 如获取流水线A下所有成员数量，会把拥有者/执行者/编辑者/查看者总数量都返回
-     * */
-    fun getResourceMemberCount(
-        projectCode: String,
-        resourceType: String,
-        resourceCode: String
-    ): ResourceMemberCountVO
+    fun getProjectMemberCount(projectCode: String): ResourceMemberCountVO
 
-    /**
-     * 获取资源下全部成员
-     * 如获取流水线A下所有成员，会把拥有者/执行者/编辑者/查看者成员都返回
-     * */
-    fun listResourceMembers(
+    fun listProjectMembers(
         projectCode: String,
         memberType: String?,
         userName: String?,

@@ -30,7 +30,7 @@ class UserAuthResourceMemberResourceImpl(
         pageSize: Int
     ): Result<SQLPage<ResourceMemberInfo>> {
         return Result(
-            permissionResourceMemberService.listResourceMembers(
+            permissionResourceMemberService.listProjectMembers(
                 projectCode = projectId,
                 memberType = memberType,
                 userName = userName,

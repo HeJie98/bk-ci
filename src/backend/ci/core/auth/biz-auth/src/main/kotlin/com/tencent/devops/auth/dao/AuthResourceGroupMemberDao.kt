@@ -285,9 +285,7 @@ class AuthResourceGroupMemberDao {
                 )
             )
             .groupBy(
-                field(MEMBER_ID),
-                field(MEMBER_NAME),
-                field(MEMBER_TYPE)
+                field(MEMBER_ID)
             )
             .orderBy(field(MEMBER_ID))
             .offset(offset).limit(limit)
