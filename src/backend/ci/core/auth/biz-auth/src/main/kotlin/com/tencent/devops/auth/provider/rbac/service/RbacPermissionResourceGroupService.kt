@@ -600,7 +600,7 @@ class RbacPermissionResourceGroupService @Autowired constructor(
             v2ManagerService.listMemberGroupsDetails(
                 ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT),
                 memberId,
-                userGroupIds.joinToString(",")
+                deptGroupIds.joinToString(",")
             ).forEach {
                 groupMemberDetailMap["${it.id}_$memberId"] = it
             }
