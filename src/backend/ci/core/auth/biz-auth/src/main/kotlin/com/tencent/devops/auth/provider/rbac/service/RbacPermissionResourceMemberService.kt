@@ -170,7 +170,7 @@ class RbacPermissionResourceMemberService constructor(
                     deptService.getMemberInfo(
                         memberId = record.id,
                         memberType = ManagerScopesEnum.USER
-                    ).name
+                    ).displayName
                 } catch (ignore: Exception) {
                     record.id
                 }
