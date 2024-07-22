@@ -148,14 +148,20 @@ class RbacPermissionResourceMemberService constructor(
 
     override fun listResourceMembers(
         projectCode: String,
+        memberType: String?,
         userName: String?,
         deptName: String?,
         page: Int,
         pageSize: Int
     ): SQLPage<ResourceMemberInfo> {
+        // 不允许用户名称和部门名称同时搜索
+        if (!userName.isNullOrEmpty() && !deptName.isNullOrEmpty()) {
+            return SQLPage(count = 0, records = emptyList())
+        }
         val count = authResourceGroupMemberDao.countResourceMember(
             dslContext = dslContext,
             projectCode = projectCode,
+            memberType = memberType,
             userName = userName,
             deptName = deptName,
         )
@@ -163,6 +169,7 @@ class RbacPermissionResourceMemberService constructor(
         val records = authResourceGroupMemberDao.listResourceMember(
             dslContext = dslContext,
             projectCode = projectCode,
+            memberType = memberType,
             userName = userName,
             deptName = deptName,
             offset = limit.offset,

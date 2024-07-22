@@ -41,6 +41,9 @@ interface UserAuthResourceMemberResource {
         @Parameter(description = "项目ID", required = true)
         @PathParam("projectId")
         projectId: String,
+        @Parameter(description = "成员类型")
+        @QueryParam("memberType")
+        memberType: String?,
         @Parameter(description = "用户名称搜索")
         @QueryParam("userName")
         userName: String?,

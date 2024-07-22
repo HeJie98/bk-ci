@@ -23,6 +23,7 @@ class UserAuthResourceMemberResourceImpl(
     override fun listProjectMembers(
         userId: String,
         projectId: String,
+        memberType: String?,
         userName: String?,
         deptName: String?,
         page: Int,
@@ -31,6 +32,7 @@ class UserAuthResourceMemberResourceImpl(
         return Result(
             permissionResourceMemberService.listResourceMembers(
                 projectCode = projectId,
+                memberType = memberType,
                 userName = userName,
                 deptName = deptName,
                 page = page,

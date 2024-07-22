@@ -45,6 +45,7 @@ interface PermissionResourceMemberService {
      * */
     fun listResourceMembers(
         projectCode: String,
+        memberType: String?,
         userName: String?,
         deptName: String?,
         page: Int,

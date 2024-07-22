@@ -118,6 +118,7 @@ class SamplePermissionResourceMemberService : PermissionResourceMemberService {
 
     override fun listResourceMembers(
         projectCode: String,
+        memberType: String?,
         userName: String?,
         deptName: String?,
         page: Int,

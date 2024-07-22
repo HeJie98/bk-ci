@@ -255,6 +255,7 @@ class AuthResourceGroupMemberDao {
     fun listResourceMember(
         dslContext: DSLContext,
         projectCode: String,
+        memberType: String?,
         userName: String?,
         deptName: String?,
         offset: Int,
@@ -263,7 +264,7 @@ class AuthResourceGroupMemberDao {
         return with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
             dslContext.select(MEMBER_ID, MEMBER_NAME, MEMBER_TYPE)
                 .from(this)
-                .where(buildResourceMemberConditions(projectCode, userName, deptName))
+                .where(buildResourceMemberConditions(projectCode, memberType, userName, deptName))
                 .groupBy(MEMBER_ID, MEMBER_NAME, MEMBER_TYPE)
                 .orderBy(MEMBER_ID)
                 .offset(offset).limit(limit)
@@ -276,18 +277,20 @@ class AuthResourceGroupMemberDao {
     fun countResourceMember(
         dslContext: DSLContext,
         projectCode: String,
+        memberType: String?,
         userName: String?,
         deptName: String?
     ): Long {
         return with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
             dslContext.select(countDistinct(MEMBER_ID)).from(this)
-                .where(buildResourceMemberConditions(projectCode, userName, deptName))
+                .where(buildResourceMemberConditions(projectCode, userName, deptName, memberType))
                 .fetchOne(0, Long::class.java) ?: 0L
         }
     }
 
     fun buildResourceMemberConditions(
         projectCode: String,
+        memberType: String?,
         userName: String?,
         deptName: String?,
     ): MutableList<Condition> {
@@ -295,6 +298,9 @@ class AuthResourceGroupMemberDao {
         with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
             conditions.add(PROJECT_CODE.eq(projectCode))
             conditions.add(MEMBER_TYPE.notEqual(ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE)))
+            if (memberType != null) {
+                conditions.add(MEMBER_TYPE.eq(memberType))
+            }
             if (userName != null) {
                 conditions.add(MEMBER_TYPE.eq(ManagerScopesEnum.getType(ManagerScopesEnum.USER)))
                 conditions.add(MEMBER_ID.like("%${userName}%"))
