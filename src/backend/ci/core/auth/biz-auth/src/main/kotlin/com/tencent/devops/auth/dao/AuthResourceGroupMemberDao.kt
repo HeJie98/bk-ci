@@ -264,7 +264,14 @@ class AuthResourceGroupMemberDao {
         return with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
             dslContext.select(MEMBER_ID, MEMBER_NAME, MEMBER_TYPE)
                 .from(this)
-                .where(buildResourceMemberConditions(projectCode, memberType, userName, deptName))
+                .where(
+                    buildResourceMemberConditions(
+                        projectCode = projectCode,
+                        memberType = memberType,
+                        userName = userName,
+                        deptName = deptName
+                    )
+                )
                 .groupBy(MEMBER_ID, MEMBER_NAME, MEMBER_TYPE)
                 .orderBy(MEMBER_ID)
                 .offset(offset).limit(limit)
@@ -283,7 +290,14 @@ class AuthResourceGroupMemberDao {
     ): Long {
         return with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
             dslContext.select(countDistinct(MEMBER_ID)).from(this)
-                .where(buildResourceMemberConditions(projectCode, userName, deptName, memberType))
+                .where(
+                    buildResourceMemberConditions(
+                        projectCode = projectCode,
+                        memberType = memberType,
+                        userName = userName,
+                        deptName = deptName
+                    )
+                )
                 .fetchOne(0, Long::class.java) ?: 0L
         }
     }
