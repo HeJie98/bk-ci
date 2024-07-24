@@ -921,7 +921,18 @@ class RbacPermissionResourceMemberService constructor(
             if (groupIds.isNotEmpty()) {
                 finalGroupIds.addAll(groupIds)
             }
-            finalGroupIds.addAll(groupIdsByCondition)
+            if (groupIdsByCondition.isNotEmpty()) {
+                finalGroupIds.addAll(groupIdsByCondition)
+            }
+            // 批量移除时，如果用户是用户组唯一管理员，忽略，不移交
+            if (excludedUniqueManagerGroup) {
+                val excludedUniqueManagerGroupIds = authResourceGroupMemberDao.listProjectUniqueManagerGroups(
+                    dslContext = dslContext,
+                    projectCode = projectCode,
+                    iamGroupIds = finalGroupIds
+                )
+                finalGroupIds.removeAll(excludedUniqueManagerGroupIds)
+            }
         }
         return finalGroupIds.distinct()
     }
