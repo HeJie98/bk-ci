@@ -147,7 +147,7 @@ class RbacPermissionResourceMemberService constructor(
         if (!userName.isNullOrEmpty() && !deptName.isNullOrEmpty()) {
             return SQLPage(count = 0, records = emptyList())
         }
-        val count = authResourceGroupMemberDao.countResourceMember(
+        val count = authResourceGroupMemberDao.countProjectMember(
             dslContext = dslContext,
             projectCode = projectCode,
             memberType = memberType,
@@ -155,7 +155,7 @@ class RbacPermissionResourceMemberService constructor(
             deptName = deptName,
         )
         val limit = PageUtil.convertPageSizeToSQLLimit(page, pageSize)
-        val records = authResourceGroupMemberDao.listResourceMember(
+        val records = authResourceGroupMemberDao.listProjectMember(
             dslContext = dslContext,
             projectCode = projectCode,
             memberType = memberType,

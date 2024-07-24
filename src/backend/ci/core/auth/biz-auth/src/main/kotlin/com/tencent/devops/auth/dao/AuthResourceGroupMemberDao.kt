@@ -256,7 +256,7 @@ class AuthResourceGroupMemberDao {
         }
     }
 
-    fun listResourceMember(
+    fun listProjectMember(
         dslContext: DSLContext,
         projectCode: String,
         memberType: String?,
@@ -312,7 +312,7 @@ class AuthResourceGroupMemberDao {
 
     }
 
-    fun countResourceMember(
+    fun countProjectMember(
         dslContext: DSLContext,
         projectCode: String,
         memberType: String?,
