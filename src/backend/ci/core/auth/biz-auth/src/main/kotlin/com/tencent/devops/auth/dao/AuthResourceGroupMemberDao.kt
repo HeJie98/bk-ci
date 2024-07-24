@@ -376,7 +376,7 @@ class AuthResourceGroupMemberDao {
         }
         if (userName != null) {
             conditions.add(memberTypeField.eq(ManagerScopesEnum.getType(ManagerScopesEnum.USER)))
-            conditions.add(memberId.like("%${userName}%"))
+            conditions.add(memberId.like("%${userName}%").or(memberName.like("%${userName}%")))
         }
         if (deptName != null) {
             conditions.add(memberTypeField.eq(ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT)))
