@@ -2,11 +2,13 @@ package com.tencent.devops.auth.resources
 
 import com.tencent.devops.auth.api.user.UserAuthResourceMemberResource
 import com.tencent.devops.auth.pojo.ResourceMemberInfo
+import com.tencent.devops.auth.pojo.enum.BatchOperateType
 import com.tencent.devops.auth.pojo.request.GroupMemberCommonConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberHandoverConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberRenewalConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberSingleRenewalReq
 import com.tencent.devops.auth.pojo.request.RemoveMemberFromProjectReq
+import com.tencent.devops.auth.pojo.vo.BatchOperateGroupMemberCheckVo
 import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.MemberGroupCountWithPermissionsVo
 import com.tencent.devops.auth.service.iam.PermissionResourceMemberService
@@ -97,6 +99,23 @@ class UserAuthResourceMemberResourceImpl(
                 userId = userId,
                 projectCode = projectId,
                 handoverMemberDTO = handoverMemberDTO
+            )
+        )
+    }
+
+    @BkManagerCheck
+    override fun batchOperateGroupMembersCheck(
+        userId: String,
+        projectId: String,
+        batchOperateType: BatchOperateType,
+        conditionReq: GroupMemberHandoverConditionReq
+    ): Result<BatchOperateGroupMemberCheckVo> {
+        return Result(
+            permissionResourceMemberService.batchOperateGroupMembersCheck(
+                userId = userId,
+                projectCode = projectId,
+                batchOperateType = batchOperateType,
+                conditionReq = conditionReq
             )
         )
     }

@@ -2,11 +2,15 @@ package com.tencent.devops.auth.provider.sample.service
 
 import com.tencent.devops.auth.pojo.ResourceMemberInfo
 import com.tencent.devops.auth.pojo.dto.GroupMemberRenewalDTO
+import com.tencent.devops.auth.pojo.enum.BatchOperateType
+import com.tencent.devops.auth.pojo.enum.JoinedType
+import com.tencent.devops.auth.pojo.enum.RemoveMemberButtonControl
 import com.tencent.devops.auth.pojo.request.GroupMemberCommonConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberHandoverConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberRenewalConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberSingleRenewalReq
 import com.tencent.devops.auth.pojo.request.RemoveMemberFromProjectReq
+import com.tencent.devops.auth.pojo.vo.BatchOperateGroupMemberCheckVo
 import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.MemberGroupCountWithPermissionsVo
 import com.tencent.devops.auth.pojo.vo.ResourceMemberCountVO
@@ -71,9 +75,20 @@ class SamplePermissionResourceMemberService : PermissionResourceMemberService {
         userId: String,
         projectCode: String,
         renewalConditionReq: GroupMemberSingleRenewalReq
-    ): GroupDetailsInfoVo {
-        TODO("Not yet implemented")
-    }
+    ): GroupDetailsInfoVo = GroupDetailsInfoVo(
+        resourceCode = "resourceCode",
+        resourceName = "resourceName",
+        resourceType = "resourceType",
+        groupId = 0,
+        groupName = "",
+        groupDesc = "",
+        expiredAtDisplay = "",
+        expiredAt = 0,
+        joinedTime = 0,
+        removeMemberButtonControl = RemoveMemberButtonControl.OTHER,
+        joinedType = JoinedType.DIRECT,
+        operator = ""
+    )
 
     override fun batchRenewalGroupMembers(
         userId: String,
@@ -92,6 +107,16 @@ class SamplePermissionResourceMemberService : PermissionResourceMemberService {
         projectCode: String,
         handoverMemberDTO: GroupMemberHandoverConditionReq
     ): Boolean = true
+
+    override fun batchOperateGroupMembersCheck(
+        userId: String,
+        projectCode: String,
+        batchOperateType: BatchOperateType,
+        conditionReq: GroupMemberHandoverConditionReq
+    ): BatchOperateGroupMemberCheckVo = BatchOperateGroupMemberCheckVo(
+        totalCount = 0,
+        inoperableCount = 0
+    )
 
     override fun removeMemberFromProject(
         userId: String,

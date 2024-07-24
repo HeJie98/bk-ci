@@ -1,11 +1,13 @@
 package com.tencent.devops.auth.api.user
 
 import com.tencent.devops.auth.pojo.ResourceMemberInfo
+import com.tencent.devops.auth.pojo.enum.BatchOperateType
 import com.tencent.devops.auth.pojo.request.GroupMemberCommonConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberHandoverConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberRenewalConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberSingleRenewalReq
 import com.tencent.devops.auth.pojo.request.RemoveMemberFromProjectReq
+import com.tencent.devops.auth.pojo.vo.BatchOperateGroupMemberCheckVo
 import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.MemberGroupCountWithPermissionsVo
 import com.tencent.devops.common.api.auth.AUTH_HEADER_USER_ID
@@ -18,6 +20,7 @@ import javax.ws.rs.Consumes
 import javax.ws.rs.DELETE
 import javax.ws.rs.GET
 import javax.ws.rs.HeaderParam
+import javax.ws.rs.POST
 import javax.ws.rs.PUT
 import javax.ws.rs.Path
 import javax.ws.rs.PathParam
@@ -113,6 +116,23 @@ interface UserAuthResourceMemberResource {
         @Parameter(description = "批量交接成员请求实体")
         handoverMemberDTO: GroupMemberHandoverConditionReq
     ): Result<Boolean>
+
+    @POST
+    @Path("/batch/{batchOperateType}/check/")
+    @Operation(summary = "批量操作用户组检查")
+    fun batchOperateGroupMembersCheck(
+        @Parameter(description = "用户名", required = true)
+        @HeaderParam(AUTH_HEADER_USER_ID)
+        userId: String,
+        @Parameter(description = "项目ID", required = true)
+        @PathParam("projectId")
+        projectId: String,
+        @Parameter(description = "批量操作类型", required = true)
+        @PathParam("batchOperateType")
+        batchOperateType: BatchOperateType,
+        @Parameter(description = "批量操作成员检查请求体")
+        conditionReq: GroupMemberHandoverConditionReq
+    ): Result<BatchOperateGroupMemberCheckVo>
 
     @PUT
     @Path("/removeMemberFromProject")

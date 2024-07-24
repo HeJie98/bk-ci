@@ -27,16 +27,8 @@
 
 package com.tencent.devops.auth.pojo.enum
 
-enum class RemoveMemberButtonControl {
-    // 唯一管理员，不允许移出组
-    UNIQUE_MANAGER,
-
-    // 唯一的拥有者,不允许移除组
-    UNIQUE_OWNER,
-
-    // 通过模板加入，不允许移出组
-    TEMPLATE,
-
-    // 其他，允许移出组
-    OTHER
+enum class BatchOperateType {
+    RENEWAL,
+    REMOVE,
+    HANDOVER
 }

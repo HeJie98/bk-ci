@@ -17,11 +17,13 @@ import com.tencent.devops.auth.dao.AuthResourceGroupMemberDao
 import com.tencent.devops.auth.pojo.AuthResourceGroupMember
 import com.tencent.devops.auth.pojo.ResourceMemberInfo
 import com.tencent.devops.auth.pojo.dto.GroupMemberRenewalDTO
+import com.tencent.devops.auth.pojo.enum.BatchOperateType
 import com.tencent.devops.auth.pojo.request.GroupMemberCommonConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberHandoverConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberRenewalConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberSingleRenewalReq
 import com.tencent.devops.auth.pojo.request.RemoveMemberFromProjectReq
+import com.tencent.devops.auth.pojo.vo.BatchOperateGroupMemberCheckVo
 import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.MemberGroupCountWithPermissionsVo
 import com.tencent.devops.auth.pojo.vo.ResourceMemberCountVO
@@ -728,6 +730,54 @@ class RbacPermissionResourceMemberService constructor(
             operateGroupMemberTask = ::handoverTask
         )
         return true
+    }
+
+    override fun batchOperateGroupMembersCheck(
+        userId: String,
+        projectCode: String,
+        batchOperateType: BatchOperateType,
+        conditionReq: GroupMemberHandoverConditionReq
+    ): BatchOperateGroupMemberCheckVo {
+        logger.info("batch operate group member check|$userId|$projectCode|$batchOperateType|$conditionReq")
+        val groupIds = getGroupIdsByCondition(
+            projectCode = projectCode,
+            commonCondition = conditionReq
+        )
+        val totalCount = groupIds.size
+        return when (batchOperateType) {
+            BatchOperateType.REMOVE -> {
+                // 唯一管理员不允许移出
+                val inoperableCount = authResourceGroupMemberDao.listProjectUniqueManagerGroups(
+                    dslContext = dslContext,
+                    projectCode = projectCode,
+                    iamGroupIds = groupIds
+                ).size
+                BatchOperateGroupMemberCheckVo(
+                    totalCount = totalCount,
+                    inoperableCount = inoperableCount
+                )
+            }
+            BatchOperateType.RENEWAL -> {
+                // 永久期限 不允许再续期
+                val permanentExpiredTimeGroupIds = listMemberGroupsDetails(
+                    memberId = conditionReq.targetMember.id,
+                    memberType = conditionReq.targetMember.type,
+                    groupIds = groupIds
+                ).filter {
+                    it.expiredAt == PERMANENT_EXPIRED_TIME
+                }
+                BatchOperateGroupMemberCheckVo(
+                    totalCount = totalCount,
+                    inoperableCount = permanentExpiredTimeGroupIds.size
+                )
+            }
+            else -> {
+                BatchOperateGroupMemberCheckVo(
+                    totalCount = totalCount,
+                    inoperableCount = 0
+                )
+            }
+        }
     }
 
     override fun removeMemberFromProject(

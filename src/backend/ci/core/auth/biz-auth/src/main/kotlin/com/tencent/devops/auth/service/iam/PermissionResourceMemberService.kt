@@ -2,11 +2,13 @@ package com.tencent.devops.auth.service.iam
 
 import com.tencent.devops.auth.pojo.ResourceMemberInfo
 import com.tencent.devops.auth.pojo.dto.GroupMemberRenewalDTO
+import com.tencent.devops.auth.pojo.enum.BatchOperateType
 import com.tencent.devops.auth.pojo.request.GroupMemberCommonConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberHandoverConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberRenewalConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberSingleRenewalReq
 import com.tencent.devops.auth.pojo.request.RemoveMemberFromProjectReq
+import com.tencent.devops.auth.pojo.vo.BatchOperateGroupMemberCheckVo
 import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.MemberGroupCountWithPermissionsVo
 import com.tencent.devops.auth.pojo.vo.ResourceMemberCountVO
@@ -66,6 +68,13 @@ interface PermissionResourceMemberService {
         projectCode: String,
         handoverMemberDTO: GroupMemberHandoverConditionReq
     ): Boolean
+
+    fun batchOperateGroupMembersCheck(
+        userId: String,
+        projectCode: String,
+        batchOperateType: BatchOperateType,
+        conditionReq: GroupMemberHandoverConditionReq
+    ): BatchOperateGroupMemberCheckVo
 
     fun removeMemberFromProject(
         userId: String,
