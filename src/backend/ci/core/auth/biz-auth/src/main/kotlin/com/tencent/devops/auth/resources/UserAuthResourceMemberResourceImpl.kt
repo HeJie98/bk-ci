@@ -108,7 +108,7 @@ class UserAuthResourceMemberResourceImpl(
         userId: String,
         projectId: String,
         batchOperateType: BatchOperateType,
-        conditionReq: GroupMemberHandoverConditionReq
+        conditionReq: GroupMemberCommonConditionReq
     ): Result<BatchOperateGroupMemberCheckVo> {
         return Result(
             permissionResourceMemberService.batchOperateGroupMembersCheck(

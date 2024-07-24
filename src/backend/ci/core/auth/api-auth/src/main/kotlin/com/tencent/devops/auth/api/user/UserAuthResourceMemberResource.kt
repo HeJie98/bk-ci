@@ -131,7 +131,7 @@ interface UserAuthResourceMemberResource {
         @PathParam("batchOperateType")
         batchOperateType: BatchOperateType,
         @Parameter(description = "批量操作成员检查请求体")
-        conditionReq: GroupMemberHandoverConditionReq
+        conditionReq: GroupMemberCommonConditionReq
     ): Result<BatchOperateGroupMemberCheckVo>
 
     @PUT

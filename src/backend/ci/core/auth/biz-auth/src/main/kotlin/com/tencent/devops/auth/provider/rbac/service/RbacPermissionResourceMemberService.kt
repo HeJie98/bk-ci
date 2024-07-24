@@ -736,7 +736,7 @@ class RbacPermissionResourceMemberService constructor(
         userId: String,
         projectCode: String,
         batchOperateType: BatchOperateType,
-        conditionReq: GroupMemberHandoverConditionReq
+        conditionReq: GroupMemberCommonConditionReq
     ): BatchOperateGroupMemberCheckVo {
         logger.info("batch operate group member check|$userId|$projectCode|$batchOperateType|$conditionReq")
         val groupIds = getGroupIdsByCondition(

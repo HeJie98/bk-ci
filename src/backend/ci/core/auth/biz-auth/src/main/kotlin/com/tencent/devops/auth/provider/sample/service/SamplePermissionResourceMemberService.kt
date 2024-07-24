@@ -112,7 +112,7 @@ class SamplePermissionResourceMemberService : PermissionResourceMemberService {
         userId: String,
         projectCode: String,
         batchOperateType: BatchOperateType,
-        conditionReq: GroupMemberHandoverConditionReq
+        conditionReq: GroupMemberCommonConditionReq
     ): BatchOperateGroupMemberCheckVo = BatchOperateGroupMemberCheckVo(
         totalCount = 0,
         inoperableCount = 0

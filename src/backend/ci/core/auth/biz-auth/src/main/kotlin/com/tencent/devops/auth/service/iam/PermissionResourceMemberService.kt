@@ -73,7 +73,7 @@ interface PermissionResourceMemberService {
         userId: String,
         projectCode: String,
         batchOperateType: BatchOperateType,
-        conditionReq: GroupMemberHandoverConditionReq
+        conditionReq: GroupMemberCommonConditionReq
     ): BatchOperateGroupMemberCheckVo
 
     fun removeMemberFromProject(
