@@ -617,50 +617,57 @@ class RbacPermissionResourceGroupService @Autowired constructor(
                 }
             }
 
-        val records = resourceGroupMembers.map {
+        val records = mutableListOf<GroupDetailsInfoVo>()
+        resourceGroupMembers.forEach {
             val resourceGroup = resourceGroupMap[it.iamGroupId.toString()]!!
-            val groupMemberDetail = groupMemberDetailMap["${it.iamGroupId}_${it.memberId}"]!!
+            val groupMemberDetail = groupMemberDetailMap["${it.iamGroupId}_${it.memberId}"]
+            if (groupMemberDetail == null) {
+                logger.warn("group member detail not exist|${it.iamGroupId}_${it.memberId}")
+                return@forEach
+            }
             val expiredAt = TimeUnit.SECONDS.toMillis(groupMemberDetail.expiredAt)
             val between = expiredAt - System.currentTimeMillis()
-            GroupDetailsInfoVo(
-                resourceCode = resourceGroup.resourceCode,
-                resourceName = resourceGroup.resourceName,
-                resourceType = resourceGroup.resourceType,
-                groupId = resourceGroup.relationId.toInt(),
-                groupName = resourceGroup.groupName,
-                groupDesc = resourceGroup.description,
-                expiredAtDisplay = when {
-                    expiredAt == PERMANENT_EXPIRED_TIME ->
-                        I18nUtil.getCodeLanMessage(messageCode = BK_MEMBER_EXPIRED_AT_DISPLAY_PERMANENT)
+            records.add(
+                GroupDetailsInfoVo(
+                    resourceCode = resourceGroup.resourceCode,
+                    resourceName = resourceGroup.resourceName,
+                    resourceType = resourceGroup.resourceType,
+                    groupId = resourceGroup.relationId.toInt(),
+                    groupName = resourceGroup.groupName,
+                    groupDesc = resourceGroup.description,
+                    expiredAtDisplay = when {
+                        expiredAt == PERMANENT_EXPIRED_TIME ->
+                            I18nUtil.getCodeLanMessage(messageCode = BK_MEMBER_EXPIRED_AT_DISPLAY_PERMANENT)
 
-                    between >= 0 -> I18nUtil.getCodeLanMessage(
-                        messageCode = BK_MEMBER_EXPIRED_AT_DISPLAY_NORMAL,
-                        params = arrayOf(DateTimeUtil.formatDay(between))
-                    )
+                        between >= 0 -> I18nUtil.getCodeLanMessage(
+                            messageCode = BK_MEMBER_EXPIRED_AT_DISPLAY_NORMAL,
+                            params = arrayOf(DateTimeUtil.formatDay(between))
+                        )
 
-                    else -> I18nUtil.getCodeLanMessage(
-                        messageCode = BK_MEMBER_EXPIRED_AT_DISPLAY_EXPIRED
-                    )
-                },
-                expiredAt = expiredAt,
-                joinedTime = TimeUnit.SECONDS.toMillis(groupMemberDetail.createdAt),
-                removeMemberButtonControl = when {
-                    it.memberType == ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE) ->
-                        RemoveMemberButtonControl.TEMPLATE
+                        else -> I18nUtil.getCodeLanMessage(
+                            messageCode = BK_MEMBER_EXPIRED_AT_DISPLAY_EXPIRED
+                        )
+                    },
+                    expiredAt = expiredAt,
+                    joinedTime = TimeUnit.SECONDS.toMillis(groupMemberDetail.createdAt),
+                    removeMemberButtonControl = when {
+                        it.memberType == ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE) ->
+                            RemoveMemberButtonControl.TEMPLATE
 
-                    resourceGroup.resourceType == AuthResourceType.PROJECT.value &&
-                        uniqueManagerGroups.contains(it.iamGroupId) -> RemoveMemberButtonControl.UNIQUE_MANAGER
+                        resourceGroup.resourceType == AuthResourceType.PROJECT.value &&
+                            uniqueManagerGroups.contains(it.iamGroupId) -> RemoveMemberButtonControl.UNIQUE_MANAGER
 
-                    uniqueManagerGroups.contains(it.iamGroupId) -> RemoveMemberButtonControl.UNIQUE_OWNER
+                        uniqueManagerGroups.contains(it.iamGroupId) -> RemoveMemberButtonControl.UNIQUE_OWNER
 
-                    else ->
-                        RemoveMemberButtonControl.OTHER
-                },
-                joinedType = when (it.memberType) {
-                    ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE) -> JoinedType.TEMPLATE
-                    else -> JoinedType.DIRECT
-                },
-                operator = ""
+                        else ->
+                            RemoveMemberButtonControl.OTHER
+                    },
+                    joinedType = when (it.memberType) {
+                        ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE) -> JoinedType.TEMPLATE
+                        else -> JoinedType.DIRECT
+                    },
+                    operator = ""
+                )
             )
         }
         return SQLPage(count = count, records = records)
