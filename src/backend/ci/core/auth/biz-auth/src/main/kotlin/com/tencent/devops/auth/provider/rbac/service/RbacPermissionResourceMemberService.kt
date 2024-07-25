@@ -770,7 +770,8 @@ class RbacPermissionResourceMemberService constructor(
                     memberType = conditionReq.targetMember.type,
                     groupIds = groupIdsOfDirectJoined
                 ).filter {
-                    it.expiredAt == PERMANENT_EXPIRED_TIME
+                    // iam用的是秒级时间戳
+                    it.expiredAt == PERMANENT_EXPIRED_TIME / 1000
                 }.size
                 BatchOperateGroupMemberCheckVo(
                     totalCount = totalCount,
