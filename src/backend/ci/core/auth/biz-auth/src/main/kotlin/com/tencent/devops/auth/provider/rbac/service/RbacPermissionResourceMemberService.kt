@@ -18,6 +18,8 @@ import com.tencent.devops.auth.pojo.AuthResourceGroupMember
 import com.tencent.devops.auth.pojo.ResourceMemberInfo
 import com.tencent.devops.auth.pojo.dto.GroupMemberRenewalDTO
 import com.tencent.devops.auth.pojo.enum.BatchOperateType
+import com.tencent.devops.auth.pojo.enum.JoinedType
+import com.tencent.devops.auth.pojo.enum.RemoveMemberButtonControl
 import com.tencent.devops.auth.pojo.request.GroupMemberCommonConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberHandoverConditionReq
 import com.tencent.devops.auth.pojo.request.GroupMemberRenewalConditionReq
@@ -41,6 +43,7 @@ import com.tencent.devops.common.auth.api.pojo.BkAuthGroupAndUserList
 import com.tencent.devops.common.auth.api.pojo.ResetAllResourceAuthorizationReq
 import com.tencent.devops.common.service.utils.RetryUtils
 import com.tencent.devops.common.web.utils.I18nUtil
+import com.tencent.devops.model.auth.tables.records.TAuthResourceGroupRecord
 import com.tencent.devops.project.constant.ProjectMessageCode
 import org.apache.commons.lang3.RandomUtils
 import org.jooq.DSLContext
@@ -620,7 +623,7 @@ class RbacPermissionResourceMemberService constructor(
             ),
             operateGroupMemberTask = ::renewalTask
         )
-        return resourceGroupService.getMemberGroupsDetails(
+        return getMemberGroupsDetails(
             projectId = projectCode,
             memberId = renewalConditionReq.targetMember.id,
             iamGroupIds = listOf(groupId),
@@ -732,6 +735,7 @@ class RbacPermissionResourceMemberService constructor(
         return true
     }
 
+
     override fun batchOperateGroupMembersCheck(
         userId: String,
         projectCode: String,
@@ -739,42 +743,44 @@ class RbacPermissionResourceMemberService constructor(
         conditionReq: GroupMemberCommonConditionReq
     ): BatchOperateGroupMemberCheckVo {
         logger.info("batch operate group member check|$userId|$projectCode|$batchOperateType|$conditionReq")
-        val groupIds = getGroupIdsByCondition(
+        // 获取用户加入的用户组
+        val (groupIdsOfDirectJoined, groupInfoIdsOfTemplateJoined) = getGroupIdsByCondition(
             projectCode = projectCode,
             commonCondition = conditionReq
         )
-        val totalCount = groupIds.size
+        val totalCount = groupIdsOfDirectJoined.size + groupInfoIdsOfTemplateJoined.size
+        val groupCountOfTemplateJoined = groupInfoIdsOfTemplateJoined.size
+
         return when (batchOperateType) {
             BatchOperateType.REMOVE -> {
-                // 唯一管理员不允许移出
-                val inoperableCount = authResourceGroupMemberDao.listProjectUniqueManagerGroups(
+                val groupCountOfUniqueManager = authResourceGroupMemberDao.listProjectUniqueManagerGroups(
                     dslContext = dslContext,
                     projectCode = projectCode,
-                    iamGroupIds = groupIds
+                    iamGroupIds = groupIdsOfDirectJoined
                 ).size
                 BatchOperateGroupMemberCheckVo(
                     totalCount = totalCount,
-                    inoperableCount = inoperableCount
+                    inoperableCount = groupCountOfUniqueManager + groupCountOfTemplateJoined
                 )
             }
             BatchOperateType.RENEWAL -> {
                 // 永久期限 不允许再续期
-                val permanentExpiredTimeGroupIds = listMemberGroupsDetails(
+                val groupCountOfPermanentExpiredTime = listMemberGroupsDetails(
                     memberId = conditionReq.targetMember.id,
                     memberType = conditionReq.targetMember.type,
-                    groupIds = groupIds
+                    groupIds = groupIdsOfDirectJoined
                 ).filter {
                     it.expiredAt == PERMANENT_EXPIRED_TIME
-                }
+                }.size
                 BatchOperateGroupMemberCheckVo(
                     totalCount = totalCount,
-                    inoperableCount = permanentExpiredTimeGroupIds.size
+                    inoperableCount = groupCountOfPermanentExpiredTime + groupCountOfTemplateJoined
                 )
             }
             else -> {
                 BatchOperateGroupMemberCheckVo(
                     totalCount = totalCount,
-                    inoperableCount = 0
+                    inoperableCount = groupCountOfTemplateJoined
                 )
             }
         }
@@ -893,7 +899,7 @@ class RbacPermissionResourceMemberService constructor(
         val groupIds = getGroupIdsByCondition(
             projectCode = projectCode,
             commonCondition = conditionReq
-        )
+        ).first
         val targetMember = conditionReq.targetMember
         val memberGroupsDetailsList = listMemberGroupsDetails(
             memberId = targetMember.id,
@@ -938,53 +944,65 @@ class RbacPermissionResourceMemberService constructor(
     private fun getGroupIdsByCondition(
         projectCode: String,
         commonCondition: GroupMemberCommonConditionReq
-    ): List<Int> {
-        val finalGroupIds = mutableListOf<Int>()
+    ): Pair<List<Int>, List<Int>> /*直接加入，模板加入*/ {
+        val finalResourceGroupMembers = mutableListOf<AuthResourceGroupMember>()
         with(commonCondition) {
-            val groupIdsByCondition = when {
+            val resourceGroupMembersByCondition = when {
                 // 全选
                 allSelection -> {
-                    authResourceGroupMemberDao.listResourceGroupMember(
-                        dslContext = dslContext,
+                    listResourceGroupMembers(
                         projectCode = projectCode,
-                        memberType = targetMember.type,
-                        memberId = targetMember.id
-                    ).map { it.iamGroupId }
+                        memberId = commonCondition.targetMember.id,
+                    ).second
                 }
-                // 全选某种资源类型
+                // 全选某些资源类型用户组
                 resourceTypes.isNotEmpty() -> {
                     resourceTypes.flatMap { resourceType ->
-                        authResourceGroupMemberDao.listResourceGroupMember(
-                            dslContext = dslContext,
+                        listResourceGroupMembers(
                             projectCode = projectCode,
-                            memberType = targetMember.type,
-                            memberId = targetMember.id,
+                            memberId = commonCondition.targetMember.id,
                             resourceType = resourceType
-                        ).map { it.iamGroupId }
+                        ).second
                     }
                 }
                 else -> {
                     emptyList()
                 }
             }
-            // 单独勾选具体的用户组
+
+            if (resourceGroupMembersByCondition.isNotEmpty()) {
+                finalResourceGroupMembers.addAll(resourceGroupMembersByCondition)
+            }
+
+            // Select specific groups individually
             if (groupIds.isNotEmpty()) {
-                finalGroupIds.addAll(groupIds)
+                val resourceGroupMembersOfSelect = listResourceGroupMembers(
+                    projectCode = projectCode,
+                    memberId = commonCondition.targetMember.id,
+                    iamGroupIds = groupIds
+                ).second
+                finalResourceGroupMembers.addAll(resourceGroupMembersOfSelect)
             }
-            if (groupIdsByCondition.isNotEmpty()) {
-                finalGroupIds.addAll(groupIdsByCondition)
+
+            val (groupIdsOfDirectJoined, groupInfoIdsOfTemplateJoined) = finalResourceGroupMembers.partition {
+                it.memberType != ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE)
+            }.run {
+                first.map { it.iamGroupId }.toMutableList() to second.map { it.iamGroupId }.toMutableList()
             }
-            // 批量移除时，如果用户是用户组唯一管理员，忽略，不移交
+
+            // When batch removing, if the user is the only manager of the group, ignore and do not transfer
             if (excludedUniqueManagerGroup) {
                 val excludedUniqueManagerGroupIds = authResourceGroupMemberDao.listProjectUniqueManagerGroups(
                     dslContext = dslContext,
                     projectCode = projectCode,
-                    iamGroupIds = finalGroupIds
+                    iamGroupIds = groupIdsOfDirectJoined
                 )
-                finalGroupIds.removeAll(excludedUniqueManagerGroupIds)
+                groupIdsOfDirectJoined.removeAll {
+                    excludedUniqueManagerGroupIds.contains(it)
+                }
             }
+            return Pair(groupIdsOfDirectJoined, groupInfoIdsOfTemplateJoined)
         }
-        return finalGroupIds.distinct()
     }
 
     private fun listMemberGroupsDetails(
@@ -1016,6 +1034,217 @@ class RbacPermissionResourceMemberService constructor(
         return memberGroupsDetailsList
     }
 
+    @Suppress("CyclomaticComplexMethod")
+    override fun getMemberGroupsDetails(
+        projectId: String,
+        memberId: String,
+        resourceType: String?,
+        iamGroupIds: List<Int>?,
+        start: Int?,
+        limit: Int?
+    ): SQLPage<GroupDetailsInfoVo> {
+        // 查询成员所在资源用户组列表，直接加入+通过用户组（模板）加入
+        val (count, resourceGroupMembers) = listResourceGroupMembers(
+            projectCode = projectId,
+            memberId = memberId,
+            resourceType = resourceType,
+            iamGroupIds = iamGroupIds,
+            start = start,
+            limit = limit
+        )
+        // 用户组对应的资源信息
+        val resourceGroupMap = authResourceGroupDao.listByRelationId(
+            dslContext = dslContext,
+            projectCode = projectId,
+            iamGroupIds = resourceGroupMembers.map { it.iamGroupId.toString() }
+        ).associateBy { it.relationId }
+        // 只有一个成员的管理员组
+        val uniqueManagerGroups = authResourceGroupMemberDao.listProjectUniqueManagerGroups(
+            dslContext = dslContext,
+            projectCode = projectId,
+            iamGroupIds = resourceGroupMembers.map { it.iamGroupId }
+        )
+        // 用户组成员详情
+        val groupMemberDetailMap = getGroupMemberDetailMap(
+            memberId = memberId,
+            resourceGroupMembers = resourceGroupMembers
+        )
+        val records = mutableListOf<GroupDetailsInfoVo>()
+        resourceGroupMembers.forEach {
+            val resourceGroup = resourceGroupMap[it.iamGroupId.toString()]!!
+            val groupMemberDetail = groupMemberDetailMap["${it.iamGroupId}_${it.memberId}"]
+            if (groupMemberDetail == null) {
+                logger.warn("group member detail not exist|${it.iamGroupId}_${it.memberId}")
+                return@forEach
+            }
+            records.add(
+                convertGroupDetailsInfoVo(
+                    resourceGroup = resourceGroup,
+                    groupMemberDetail = groupMemberDetail,
+                    uniqueManagerGroups = uniqueManagerGroups,
+                    authResourceGroupMember = it
+                )
+            )
+        }
+        return SQLPage(count = count, records = records)
+    }
+
+    // 查询成员所在资源用户组列表，直接加入+通过用户组（模板）加入
+    @Suppress("LongParameterList")
+    private fun listResourceGroupMembers(
+        projectCode: String,
+        memberId: String,
+        resourceType: String? = null,
+        iamGroupIds: List<Int>? = null,
+        start: Int? = null,
+        limit: Int? = null
+    ): Pair<Long, List<AuthResourceGroupMember>> {
+        // 获取用户加入的项目级用户组模板ID
+        val iamTemplateIds = listProjectMemberGroupTemplateIds(
+            projectCode = projectCode,
+            memberId = memberId
+        )
+        val count = authResourceGroupMemberDao.countMemberGroup(
+            dslContext = dslContext,
+            projectCode = projectCode,
+            memberId = memberId,
+            iamTemplateIds = iamTemplateIds,
+            resourceType = resourceType,
+            iamGroupIds = iamGroupIds,
+        )[resourceType] ?: 0L
+        val resourceGroupMembers = authResourceGroupMemberDao.listMemberGroupDetail(
+            dslContext = dslContext,
+            projectCode = projectCode,
+            memberId = memberId,
+            iamTemplateIds = iamTemplateIds,
+            resourceType = resourceType,
+            iamGroupIds = iamGroupIds,
+            offset = start,
+            limit = limit
+        )
+        return Pair(count, resourceGroupMembers)
+    }
+
+    // 获取用户加入的项目级用户组模板ID
+    private fun listProjectMemberGroupTemplateIds(
+        projectCode: String,
+        memberId: String
+    ): List<String> {
+        // 查询项目下包含该成员的组列表
+        val projectGroupIds = authResourceGroupMemberDao.listResourceGroupMember(
+            dslContext = dslContext,
+            projectCode = projectCode,
+            resourceType = AuthResourceType.PROJECT.value,
+            memberId = memberId
+        ).map { it.iamGroupId.toString() }
+        // 通过项目组ID获取人员模板ID
+        return authResourceGroupDao.listByRelationId(
+            dslContext = dslContext,
+            projectCode = projectCode,
+            iamGroupIds = projectGroupIds
+        ).filter { it.iamTemplateId != null }
+            .map { it.iamTemplateId.toString() }
+    }
+
+    private fun getGroupMemberDetailMap(
+        memberId: String,
+        resourceGroupMembers: List<AuthResourceGroupMember>
+    ): Map<String, MemberGroupDetailsResponse> {
+        // 用户组成员详情
+        val groupMemberDetailMap = mutableMapOf<String, MemberGroupDetailsResponse>()
+        // 直接加入的用户
+        val userGroupIds = resourceGroupMembers
+            .filter { it.memberType == ManagerScopesEnum.getType(ManagerScopesEnum.USER) }
+            .map { it.iamGroupId }
+        if (userGroupIds.isNotEmpty()) {
+            iamV2ManagerService.listMemberGroupsDetails(
+                ManagerScopesEnum.getType(ManagerScopesEnum.USER),
+                memberId,
+                userGroupIds.joinToString(",")
+            ).forEach {
+                groupMemberDetailMap["${it.id}_$memberId"] = it
+            }
+        }
+        // 直接加入的组织
+        val deptGroupIds = resourceGroupMembers
+            .filter { it.memberType == ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT) }
+            .map { it.iamGroupId }
+        if (deptGroupIds.isNotEmpty()) {
+            iamV2ManagerService.listMemberGroupsDetails(
+                ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT),
+                memberId,
+                deptGroupIds.joinToString(",")
+            ).forEach {
+                groupMemberDetailMap["${it.id}_$memberId"] = it
+            }
+        }
+        // 人员模板加入的组
+        resourceGroupMembers.filter { it.memberType == ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE) }
+            .groupBy({ it.memberId }, { it.iamGroupId.toString() })
+            .forEach { (iamTemplateId, iamGroupIds) ->
+                if (iamGroupIds.isEmpty()) return@forEach
+                iamV2ManagerService.listMemberGroupsDetails(
+                    ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE),
+                    iamTemplateId,
+                    iamGroupIds.joinToString(",")
+                ).forEach {
+                    groupMemberDetailMap["${it.id}_$iamTemplateId"] = it
+                }
+            }
+        return groupMemberDetailMap
+    }
+
+    private fun convertGroupDetailsInfoVo(
+        resourceGroup: TAuthResourceGroupRecord,
+        groupMemberDetail: MemberGroupDetailsResponse,
+        uniqueManagerGroups: List<Int>,
+        authResourceGroupMember: AuthResourceGroupMember
+    ): GroupDetailsInfoVo {
+        val expiredAt = TimeUnit.SECONDS.toMillis(groupMemberDetail.expiredAt)
+        val between = expiredAt - System.currentTimeMillis()
+
+        return GroupDetailsInfoVo(
+            resourceCode = resourceGroup.resourceCode,
+            resourceName = resourceGroup.resourceName,
+            resourceType = resourceGroup.resourceType,
+            groupId = resourceGroup.relationId.toInt(),
+            groupName = resourceGroup.groupName,
+            groupDesc = resourceGroup.description,
+            expiredAtDisplay = when {
+                expiredAt == PERMANENT_EXPIRED_TIME ->
+                    I18nUtil.getCodeLanMessage(messageCode = AuthI18nConstants.BK_MEMBER_EXPIRED_AT_DISPLAY_PERMANENT)
+
+                between >= 0 -> I18nUtil.getCodeLanMessage(
+                    messageCode = AuthI18nConstants.BK_MEMBER_EXPIRED_AT_DISPLAY_NORMAL,
+                    params = arrayOf(DateTimeUtil.formatDay(between))
+                )
+
+                else -> I18nUtil.getCodeLanMessage(
+                    messageCode = AuthI18nConstants.BK_MEMBER_EXPIRED_AT_DISPLAY_EXPIRED
+                )
+            },
+            expiredAt = expiredAt,
+            joinedTime = TimeUnit.SECONDS.toMillis(groupMemberDetail.createdAt),
+            removeMemberButtonControl = when {
+                authResourceGroupMember.memberType == ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE) ->
+                    RemoveMemberButtonControl.TEMPLATE
+                resourceGroup.resourceType == AuthResourceType.PROJECT.value &&
+                    uniqueManagerGroups.contains(authResourceGroupMember.iamGroupId) ->
+                    RemoveMemberButtonControl.UNIQUE_MANAGER
+                uniqueManagerGroups.contains(authResourceGroupMember.iamGroupId) ->
+                    RemoveMemberButtonControl.UNIQUE_OWNER
+
+                else ->
+                    RemoveMemberButtonControl.OTHER
+            },
+            joinedType = when (authResourceGroupMember.memberType) {
+                ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE) -> JoinedType.TEMPLATE
+                else -> JoinedType.DIRECT
+            },
+            operator = ""
+        )
+    }
+
     companion object {
         private val logger = LoggerFactory.getLogger(RbacPermissionResourceMemberService::class.java)
 
@@ -1031,6 +1260,6 @@ class RbacPermissionResourceMemberService constructor(
         private val executorService = Executors.newFixedThreadPool(30)
 
         // 永久过期时间
-        private const val PERMANENT_EXPIRED_TIME = 4102444800L
+        private const val PERMANENT_EXPIRED_TIME = 4102444800000L
     }
 }

@@ -50,6 +50,17 @@ interface PermissionResourceMemberService {
         memberId: String
     ): List<MemberGroupCountWithPermissionsVo>
 
+    // 查询成员所在资源用户组详情，直接加入+通过用户组（模板）加入
+    @Suppress("LongParameterList")
+    fun getMemberGroupsDetails(
+        projectId: String,
+        memberId: String,
+        resourceType: String?,
+        iamGroupIds: List<Int>? = null,
+        start: Int?,
+        limit: Int?
+    ): SQLPage<GroupDetailsInfoVo>
+
     fun batchDeleteResourceGroupMembers(
         projectCode: String,
         iamGroupId: Int,

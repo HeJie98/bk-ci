@@ -75,7 +75,7 @@ class UserAuthResourceGroupResourceImpl @Autowired constructor(
         limit: Int
     ): Result<SQLPage<GroupDetailsInfoVo>> {
         return Result(
-            permissionResourceGroupService.getMemberGroupsDetails(
+            permissionResourceMemberService.getMemberGroupsDetails(
                 projectId = projectId,
                 resourceType = resourceType,
                 memberId = memberId,

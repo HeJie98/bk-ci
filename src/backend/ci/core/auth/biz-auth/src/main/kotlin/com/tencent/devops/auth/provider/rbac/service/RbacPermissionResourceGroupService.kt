@@ -34,12 +34,8 @@ import com.tencent.bk.sdk.iam.dto.V2PageInfoDTO
 import com.tencent.bk.sdk.iam.dto.manager.ManagerRoleGroup
 import com.tencent.bk.sdk.iam.dto.manager.dto.ManagerRoleGroupDTO
 import com.tencent.bk.sdk.iam.dto.manager.dto.SearchGroupDTO
-import com.tencent.bk.sdk.iam.dto.response.MemberGroupDetailsResponse
 import com.tencent.bk.sdk.iam.service.v2.V2ManagerService
 import com.tencent.devops.auth.constant.AuthI18nConstants
-import com.tencent.devops.auth.constant.AuthI18nConstants.BK_MEMBER_EXPIRED_AT_DISPLAY_EXPIRED
-import com.tencent.devops.auth.constant.AuthI18nConstants.BK_MEMBER_EXPIRED_AT_DISPLAY_NORMAL
-import com.tencent.devops.auth.constant.AuthI18nConstants.BK_MEMBER_EXPIRED_AT_DISPLAY_PERMANENT
 import com.tencent.devops.auth.constant.AuthMessageCode
 import com.tencent.devops.auth.constant.AuthMessageCode.AUTH_GROUP_MEMBER_EXPIRED_DESC
 import com.tencent.devops.auth.constant.AuthMessageCode.ERROR_DEFAULT_GROUP_DELETE_FAIL
@@ -55,9 +51,6 @@ import com.tencent.devops.auth.pojo.dto.GroupAddDTO
 import com.tencent.devops.auth.pojo.dto.ListGroupConditionDTO
 import com.tencent.devops.auth.pojo.dto.RenameGroupDTO
 import com.tencent.devops.auth.pojo.enum.GroupMemberStatus
-import com.tencent.devops.auth.pojo.enum.JoinedType
-import com.tencent.devops.auth.pojo.enum.RemoveMemberButtonControl
-import com.tencent.devops.auth.pojo.vo.GroupDetailsInfoVo
 import com.tencent.devops.auth.pojo.vo.GroupPermissionDetailVo
 import com.tencent.devops.auth.pojo.vo.IamGroupInfoVo
 import com.tencent.devops.auth.pojo.vo.IamGroupMemberInfoVo
@@ -65,7 +58,6 @@ import com.tencent.devops.auth.pojo.vo.IamGroupPoliciesVo
 import com.tencent.devops.auth.service.AuthMonitorSpaceService
 import com.tencent.devops.auth.service.iam.PermissionResourceGroupService
 import com.tencent.devops.common.api.exception.ErrorCodeException
-import com.tencent.devops.common.api.model.SQLPage
 import com.tencent.devops.common.api.pojo.Pagination
 import com.tencent.devops.common.api.util.DateTimeUtil
 import com.tencent.devops.common.api.util.MessageUtil
@@ -77,7 +69,6 @@ import org.jooq.impl.DSL
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
-import java.util.concurrent.TimeUnit
 
 @Suppress("LongParameterList", "IMPLICIT_CAST_TO_ANY")
 class RbacPermissionResourceGroupService @Autowired constructor(
@@ -107,12 +98,6 @@ class RbacPermissionResourceGroupService @Autowired constructor(
         private const val MAX_GROUP_NAME_LENGTH = 32
         private const val MIN_GROUP_NAME_LENGTH = 5
         private const val FIRST_PAGE = 1
-
-        // 永久过期时间
-        private const val PERMANENT_EXPIRED_TIME = 4102444800000L
-
-        // 毫秒转换
-        private const val MILLISECOND = 1000
     }
 
     override fun listGroup(
@@ -517,160 +502,6 @@ class RbacPermissionResourceGroupService @Autowired constructor(
             iamGroupId = iamGroupId
         )
         return true
-    }
-
-    @Suppress("CyclomaticComplexMethod")
-    override fun getMemberGroupsDetails(
-        projectId: String,
-        memberId: String,
-        resourceType: String?,
-        iamGroupIds: List<Int>?,
-        start: Int?,
-        limit: Int?
-    ): SQLPage<GroupDetailsInfoVo> {
-        // 查询项目下包含该成员的组列表
-        val projectGroupIds = authResourceGroupMemberDao.listResourceGroupMember(
-            dslContext = dslContext,
-            projectCode = projectId,
-            resourceType = AuthResourceType.PROJECT.value,
-            memberId = memberId
-        ).map { it.iamGroupId.toString() }
-        // 通过项目组ID获取人员模板ID
-        val iamTemplateId = authResourceGroupDao.listByRelationId(
-            dslContext = dslContext,
-            projectCode = projectId,
-            iamGroupIds = projectGroupIds
-        ).filter { it.iamTemplateId != null }
-            .map { it.iamTemplateId.toString() }
-        // 查询成员所在资源用户组列表
-        val count = authResourceGroupMemberDao.countMemberGroup(
-            dslContext = dslContext,
-            projectCode = projectId,
-            memberId = memberId,
-            iamTemplateIds = iamTemplateId,
-            resourceType = resourceType,
-            iamGroupIds = iamGroupIds,
-        )[resourceType] ?: 0L
-        val resourceGroupMembers = authResourceGroupMemberDao.listMemberGroupDetail(
-            dslContext = dslContext,
-            projectCode = projectId,
-            memberId = memberId,
-            iamTemplateIds = iamTemplateId,
-            resourceType = resourceType,
-            iamGroupIds = iamGroupIds,
-            offset = start,
-            limit = limit
-        )
-        val resourceGroupMap = authResourceGroupDao.listByRelationId(
-            dslContext = dslContext,
-            projectCode = projectId,
-            iamGroupIds = resourceGroupMembers.map { it.iamGroupId.toString() }
-        ).associateBy { it.relationId }
-        // 只有一个成员的管理员组
-        val uniqueManagerGroups = authResourceGroupMemberDao.listProjectUniqueManagerGroups(
-            dslContext = dslContext,
-            projectCode = projectId,
-            iamGroupIds = resourceGroupMembers.map { it.iamGroupId }
-        )
-
-        // 用户组成员详情
-        val groupMemberDetailMap = mutableMapOf<String, MemberGroupDetailsResponse>()
-        // 直接加入的用户
-        val userGroupIds = resourceGroupMembers
-            .filter { it.memberType == ManagerScopesEnum.getType(ManagerScopesEnum.USER) }
-            .map { it.iamGroupId }
-        if (userGroupIds.isNotEmpty()) {
-            v2ManagerService.listMemberGroupsDetails(
-                ManagerScopesEnum.getType(ManagerScopesEnum.USER),
-                memberId,
-                userGroupIds.joinToString(",")
-            ).forEach {
-                groupMemberDetailMap["${it.id}_$memberId"] = it
-            }
-        }
-
-        // 直接加入的组织
-        val deptGroupIds = resourceGroupMembers
-            .filter { it.memberType == ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT) }
-            .map { it.iamGroupId }
-        if (deptGroupIds.isNotEmpty()) {
-            v2ManagerService.listMemberGroupsDetails(
-                ManagerScopesEnum.getType(ManagerScopesEnum.DEPARTMENT),
-                memberId,
-                deptGroupIds.joinToString(",")
-            ).forEach {
-                groupMemberDetailMap["${it.id}_$memberId"] = it
-            }
-        }
-
-        // 人员模板加入的组
-        resourceGroupMembers.filter { it.memberType == ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE) }
-            .groupBy({ it.memberId }, { it.iamGroupId.toString() })
-            .forEach { (iamTemplateId, iamGroupIds) ->
-                if (iamGroupIds.isEmpty()) return@forEach
-                v2ManagerService.listMemberGroupsDetails(
-                    ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE),
-                    iamTemplateId,
-                    iamGroupIds.joinToString(",")
-                ).forEach {
-                    groupMemberDetailMap["${it.id}_$iamTemplateId"] = it
-                }
-            }
-
-        val records = mutableListOf<GroupDetailsInfoVo>()
-        resourceGroupMembers.forEach {
-            val resourceGroup = resourceGroupMap[it.iamGroupId.toString()]!!
-            val groupMemberDetail = groupMemberDetailMap["${it.iamGroupId}_${it.memberId}"]
-            if (groupMemberDetail == null) {
-                logger.warn("group member detail not exist|${it.iamGroupId}_${it.memberId}")
-                return@forEach
-            }
-            val expiredAt = TimeUnit.SECONDS.toMillis(groupMemberDetail.expiredAt)
-            val between = expiredAt - System.currentTimeMillis()
-            records.add(
-                GroupDetailsInfoVo(
-                    resourceCode = resourceGroup.resourceCode,
-                    resourceName = resourceGroup.resourceName,
-                    resourceType = resourceGroup.resourceType,
-                    groupId = resourceGroup.relationId.toInt(),
-                    groupName = resourceGroup.groupName,
-                    groupDesc = resourceGroup.description,
-                    expiredAtDisplay = when {
-                        expiredAt == PERMANENT_EXPIRED_TIME ->
-                            I18nUtil.getCodeLanMessage(messageCode = BK_MEMBER_EXPIRED_AT_DISPLAY_PERMANENT)
-
-                        between >= 0 -> I18nUtil.getCodeLanMessage(
-                            messageCode = BK_MEMBER_EXPIRED_AT_DISPLAY_NORMAL,
-                            params = arrayOf(DateTimeUtil.formatDay(between))
-                        )
-
-                        else -> I18nUtil.getCodeLanMessage(
-                            messageCode = BK_MEMBER_EXPIRED_AT_DISPLAY_EXPIRED
-                        )
-                    },
-                    expiredAt = expiredAt,
-                    joinedTime = TimeUnit.SECONDS.toMillis(groupMemberDetail.createdAt),
-                    removeMemberButtonControl = when {
-                        it.memberType == ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE) ->
-                            RemoveMemberButtonControl.TEMPLATE
-
-                        resourceGroup.resourceType == AuthResourceType.PROJECT.value &&
-                            uniqueManagerGroups.contains(it.iamGroupId) -> RemoveMemberButtonControl.UNIQUE_MANAGER
-
-                        uniqueManagerGroups.contains(it.iamGroupId) -> RemoveMemberButtonControl.UNIQUE_OWNER
-
-                        else ->
-                            RemoveMemberButtonControl.OTHER
-                    },
-                    joinedType = when (it.memberType) {
-                        ManagerScopesEnum.getType(ManagerScopesEnum.TEMPLATE) -> JoinedType.TEMPLATE
-                        else -> JoinedType.DIRECT
-                    },
-                    operator = ""
-                )
-            )
-        }
-        return SQLPage(count = count, records = records)
     }
 
     private fun getGroupPermissionDetailBySystem(iamSystemId: String, groupId: Int): List<GroupPermissionDetailVo> {

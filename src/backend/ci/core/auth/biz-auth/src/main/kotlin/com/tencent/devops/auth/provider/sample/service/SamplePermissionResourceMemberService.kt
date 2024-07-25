@@ -155,4 +155,15 @@ class SamplePermissionResourceMemberService : PermissionResourceMemberService {
     ): List<MemberGroupCountWithPermissionsVo> {
         return emptyList()
     }
+
+    override fun getMemberGroupsDetails(
+        projectId: String,
+        memberId: String,
+        resourceType: String?,
+        iamGroupIds: List<Int>?,
+        start: Int?,
+        limit: Int?
+    ): SQLPage<GroupDetailsInfoVo> {
+        return SQLPage(0, records = emptyList())
+    }
 }

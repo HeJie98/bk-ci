@@ -99,15 +99,4 @@ class SamplePermissionResourceGroupService : PermissionResourceGroupService {
         projectId: String,
         groupCode: String
     ) = true
-
-    override fun getMemberGroupsDetails(
-        projectId: String,
-        memberId: String,
-        resourceType: String?,
-        iamGroupIds: List<Int>?,
-        start: Int?,
-        limit: Int?
-    ): SQLPage<GroupDetailsInfoVo> {
-        return SQLPage(count = 0, records = emptyList())
-    }
 }
