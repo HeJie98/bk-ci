@@ -214,6 +214,22 @@ class AuthResourceGroupMemberDao {
         }
     }
 
+    fun isMemberInGroup(
+        dslContext: DSLContext,
+        projectCode: String,
+        iamGroupId: Int,
+        memberId: String
+    ): Boolean {
+        return with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
+            dslContext.selectCount()
+                .from(this)
+                .where(PROJECT_CODE.eq(projectCode))
+                .and(IAM_GROUP_ID.eq(iamGroupId))
+                .and(MEMBER_ID.eq(memberId))
+                .fetchOne(0, Int::class.java) != 0
+        }
+    }
+
     fun handoverGroupMembers(
         dslContext: DSLContext,
         projectCode: String,
@@ -223,15 +239,17 @@ class AuthResourceGroupMemberDao {
         expiredTime: LocalDateTime
     ) {
         with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
-            dslContext.update(this)
-                .set(MEMBER_ID, handoverTo.id)
-                .set(MEMBER_NAME, handoverTo.name)
-                .set(MEMBER_TYPE, handoverTo.type)
-                .set(EXPIRED_TIME, expiredTime)
-                .where(PROJECT_CODE.eq(projectCode))
-                .and(IAM_GROUP_ID.eq(iamGroupId))
-                .and(MEMBER_ID.eq(handoverFrom.id))
-                .execute()
+            if (!isMemberInGroup(dslContext, projectCode, iamGroupId, handoverTo.id)) {
+                dslContext.update(this)
+                    .set(MEMBER_ID, handoverTo.id)
+                    .set(MEMBER_NAME, handoverTo.name)
+                    .set(MEMBER_TYPE, handoverTo.type)
+                    .set(EXPIRED_TIME, expiredTime)
+                    .where(PROJECT_CODE.eq(projectCode))
+                    .and(IAM_GROUP_ID.eq(iamGroupId))
+                    .and(MEMBER_ID.eq(handoverFrom.id))
+                    .execute()
+            }
         }
     }
 

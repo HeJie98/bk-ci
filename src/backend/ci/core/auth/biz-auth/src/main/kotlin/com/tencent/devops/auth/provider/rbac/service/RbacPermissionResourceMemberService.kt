@@ -877,6 +877,7 @@ class RbacPermissionResourceMemberService constructor(
             handoverMemberDTO.targetMember.type,
             handoverMemberDTO.targetMember.id
         )
+        //校验用户是否在用户组，如果存在则跳过，不存在才做交接
         authResourceGroupMemberDao.handoverGroupMembers(
             dslContext = dslContext,
             projectCode = projectCode,
