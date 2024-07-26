@@ -55,4 +55,7 @@ interface DeptService {
 
     // 获取单个用户信息
     fun getUserInfo(userId: String, name: String): UserAndDeptInfoVo?
+
+    // 获取成员信息
+    fun getMemberInfo(memberId: String, memberType: ManagerScopesEnum): UserAndDeptInfoVo
 }
