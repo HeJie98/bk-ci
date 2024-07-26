@@ -58,24 +58,33 @@ import com.tencent.devops.common.web.utils.I18nUtil
 import com.tencent.devops.model.repository.tables.records.TRepositoryRecord
 import com.tencent.devops.process.api.service.ServicePipelineYamlResource
 import com.tencent.devops.repository.constant.RepositoryMessageCode
+import com.tencent.devops.repository.constant.RepositoryMessageCode.ERROR_USER_HAVE_NOT_DOWNLOAD_PEM
+import com.tencent.devops.repository.constant.RepositoryMessageCode.NOT_AUTHORIZED_BY_OAUTH
+import com.tencent.devops.repository.constant.RepositoryMessageCode.NOT_GITHUB_AUTHORIZED_BY_OAUTH
 import com.tencent.devops.repository.constant.RepositoryMessageCode.PAC_REPO_CAN_NOT_DELETE
 import com.tencent.devops.repository.constant.RepositoryMessageCode.PAC_REPO_CAN_NOT_RENAME
+import com.tencent.devops.repository.constant.RepositoryMessageCode.REPOSITORY_NO_SUPPORT_OAUTH
 import com.tencent.devops.repository.constant.RepositoryMessageCode.USER_CREATE_PEM_ERROR
 import com.tencent.devops.repository.dao.RepositoryCodeGitDao
 import com.tencent.devops.repository.dao.RepositoryDao
 import com.tencent.devops.repository.pojo.AtomRefRepositoryInfo
 import com.tencent.devops.repository.pojo.AuthorizeResult
 import com.tencent.devops.repository.pojo.CodeGitRepository
+import com.tencent.devops.repository.pojo.GithubRepository
 import com.tencent.devops.repository.pojo.RepoRename
 import com.tencent.devops.repository.pojo.Repository
 import com.tencent.devops.repository.pojo.RepositoryDetailInfo
 import com.tencent.devops.repository.pojo.RepositoryInfo
 import com.tencent.devops.repository.pojo.RepositoryInfoWithPermission
+import com.tencent.devops.repository.pojo.enums.GithubAccessLevelEnum
 import com.tencent.devops.repository.pojo.enums.RedirectUrlTypeEnum
 import com.tencent.devops.repository.pojo.enums.RepoAuthType
 import com.tencent.devops.repository.pojo.enums.TokenTypeEnum
 import com.tencent.devops.repository.pojo.enums.VisibilityLevelEnum
 import com.tencent.devops.repository.pojo.git.UpdateGitProjectInfo
+import com.tencent.devops.repository.sdk.github.request.GetRepositoryPermissionsRequest
+import com.tencent.devops.repository.service.github.GithubService
+import com.tencent.devops.repository.service.github.IGithubService
 import com.tencent.devops.repository.service.loader.CodeRepositoryServiceRegistrar
 import com.tencent.devops.repository.service.scm.IGitOauthService
 import com.tencent.devops.repository.service.scm.IGitService
@@ -96,6 +105,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import kotlin.math.min
 
 @Service
 @Suppress("ALL")
@@ -108,6 +118,7 @@ class RepositoryService @Autowired constructor(
     private val tGitOAuthService: TGitOAuthService,
     private val dslContext: DSLContext,
     private val repositoryPermissionService: RepositoryPermissionService,
+    private val githubService: IGithubService,
     private val client: Client
 ) {
 
@@ -612,7 +623,7 @@ class RepositoryService @Autowired constructor(
         return compose(repository)
     }
 
-    private fun getRepository(projectId: String, repositoryConfig: RepositoryConfig): TRepositoryRecord {
+    fun getRepository(projectId: String, repositoryConfig: RepositoryConfig): TRepositoryRecord {
         logger.info("[$projectId]Start to get the repository - ($repositoryConfig)")
         return when (repositoryConfig.repositoryType) {
             RepositoryType.ID -> {
@@ -625,7 +636,7 @@ class RepositoryService @Autowired constructor(
         }
     }
 
-    private fun compose(repository: TRepositoryRecord): Repository {
+    fun compose(repository: TRepositoryRecord): Repository {
         val codeRepositoryService = CodeRepositoryServiceRegistrar.getServiceByScmType(repository.type)
         return codeRepositoryService.compose(repository = repository)
     }
@@ -1407,6 +1418,125 @@ class RepositoryService @Autowired constructor(
             projectId = projectId
         )
         return Pair(count, repositoryAuthorizationInfos)
+    }
+
+    fun getRepository(projectId: String, repositoryHashId: String?, repoAliasName: String?): Repository {
+        if (repoAliasName.isNullOrBlank() && repoAliasName.isNullOrBlank()) {
+            throw IllegalArgumentException("repositoryHashId or repoAliasName can not be null")
+        }
+        return compose(
+            getRepository(
+                projectId = projectId,
+                repositoryConfig = if (repositoryHashId.isNullOrBlank()) {
+                    RepositoryConfig(
+                        repositoryHashId = repositoryHashId,
+                        repositoryName = null,
+                        repositoryType = RepositoryType.ID
+                    )
+                } else {
+                    RepositoryConfig(
+                        repositoryHashId = null,
+                        repositoryName = repoAliasName,
+                        repositoryType = RepositoryType.NAME
+                    )
+                }
+            )
+        )
+    }
+
+    /**
+     * 检查代码库下载权限
+     */
+    fun checkRepoDownloadPem(
+        userId: String,
+        projectId: String,
+        repository: Repository
+    ) {
+        val projectName = repository.projectName
+        val havePermission = when (repository) {
+            is CodeGitRepository -> {
+                val token = gitOauthService.getAccessToken(userId = userId)?.accessToken ?: throw ErrorCodeException(
+                    errorCode = NOT_AUTHORIZED_BY_OAUTH,
+                    params = arrayOf(userId)
+                )
+                val members = try {
+                    gitService.getMembers(
+                        token = token,
+                        gitProjectId = projectName,
+                        search = userId,
+                        page = 1,
+                        pageSize = 100,
+                        tokenType = TokenTypeEnum.OAUTH
+                    ).data
+                } catch (ignored: Exception) {
+                    logger.warn("get git repository members failed: $ignored")
+                    null
+                } ?: emptyList()
+                members.find { it.username == userId && it.accessLevel >= GitAccessLevelEnum.REPORTER.level } != null
+            }
+
+            is GithubRepository -> {
+                val token = githubService.getAccessToken(userId) ?: throw ErrorCodeException(
+                    errorCode = NOT_GITHUB_AUTHORIZED_BY_OAUTH,
+                    params = arrayOf(userId)
+                )
+                // github 用户信息
+                val user = githubService.getUser(token.accessToken) ?: throw ErrorCodeException(
+                    errorCode = NOT_GITHUB_AUTHORIZED_BY_OAUTH,
+                    params = arrayOf(userId)
+                )
+                // 是否有下载权限
+                val permission = githubService.getRepositoryPermissions(
+                    projectName = projectName,
+                    userId = user.login,
+                    token = token.accessToken
+                )?.permission
+                GithubAccessLevelEnum.getGithubAccessLevel(permission).level >= GithubAccessLevelEnum.READ.level
+            }
+
+            else -> {
+                throw ErrorCodeException(
+                    errorCode = REPOSITORY_NO_SUPPORT_OAUTH,
+                    params = arrayOf(repository.getScmType().name)
+                )
+            }
+        }
+        if (!havePermission) {
+            throw ErrorCodeException(
+                errorCode = ERROR_USER_HAVE_NOT_DOWNLOAD_PEM,
+                params = arrayOf(userId, repository.aliasName)
+            )
+        }
+    }
+
+    /**
+     * 重置oauth用户
+     */
+    fun reOauth(
+        repository: Repository,
+        repositoryRecord: TRepositoryRecord,
+        userId: String,
+        projectId: String
+    ) {
+        // 更新授权用户
+        val targetRepo = when (repository) {
+            is CodeGitRepository -> repository.copy(userName = userId)
+            is GithubRepository -> repository.copy(userName = userId)
+            else -> {
+                throw ErrorCodeException(
+                    errorCode = REPOSITORY_NO_SUPPORT_OAUTH,
+                    params = arrayOf(repository.getScmType().name)
+                )
+            }
+        }
+        val codeRepositoryService = CodeRepositoryServiceRegistrar.getService(repository)
+        codeRepositoryService.edit(
+            userId = userId,
+            projectId = projectId,
+            repositoryHashId = repository.repoHashId!!,
+            repository = targetRepo,
+            record = repositoryRecord
+        )
     }
 
     companion object {

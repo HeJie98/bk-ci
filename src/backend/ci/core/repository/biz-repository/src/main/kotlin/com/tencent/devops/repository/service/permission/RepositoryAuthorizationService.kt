@@ -142,6 +142,26 @@ class RepositoryAuthorizationService constructor(
                 language = I18nUtil.getLanguage(userId)
             )
         )
+        val repositoryRecord = repositoryService.getRepository(
+            projectId = projectCode,
+            repositoryConfig = RepositoryConfig(
+                repositoryName = null,
+                repositoryHashId = resourceCode,
+                repositoryType = RepositoryType.ID
+            )
+        )
+        val repository = repositoryService.compose(repositoryRecord)
+        repositoryService.checkRepoDownloadPem(
+            userId = userId,
+            projectId = projectCode,
+            repository = repository
+        )
+        repositoryService.reOauth(
+            repository = repository,
+            repositoryRecord = repositoryRecord,
+            userId = userId,
+            projectId = projectCode
+        )
     }
 
     companion object {
