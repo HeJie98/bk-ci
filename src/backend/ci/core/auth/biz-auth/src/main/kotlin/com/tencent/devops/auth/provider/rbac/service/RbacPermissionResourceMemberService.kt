@@ -843,8 +843,15 @@ class RbacPermissionResourceMemberService constructor(
                 "${handoverMemberDTO.targetMember}|${handoverMemberDTO.handoverTo}"
         )
         val currentTimeSeconds = System.currentTimeMillis() / 1000
-        // 一键退出项目，即全量交接权限，若用户加入的用户组已过期，则直接删除，不做交接
-        if (handoverMemberDTO.allSelection && expiredAt < currentTimeSeconds) {
+        // 一键退出项目，即全量交接权限，若用户加入的用户组已过期或者交接人已经在用户组中，
+        // 则直接删除，不做交接
+        if ((handoverMemberDTO.allSelection && expiredAt < currentTimeSeconds) ||
+            authResourceGroupMemberDao.isMemberInGroup(
+                dslContext = dslContext,
+                projectCode = projectCode,
+                iamGroupId = groupId,
+                memberId = handoverMemberDTO.handoverTo.id
+            )) {
             authResourceGroupMemberDao.batchDeleteGroupMembers(
                 dslContext = dslContext,
                 projectCode = projectCode,
@@ -877,7 +884,6 @@ class RbacPermissionResourceMemberService constructor(
             handoverMemberDTO.targetMember.type,
             handoverMemberDTO.targetMember.id
         )
-        //校验用户是否在用户组，如果存在则跳过，不存在才做交接
         authResourceGroupMemberDao.handoverGroupMembers(
             dslContext = dslContext,
             projectCode = projectCode,

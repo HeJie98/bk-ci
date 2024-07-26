@@ -239,17 +239,15 @@ class AuthResourceGroupMemberDao {
         expiredTime: LocalDateTime
     ) {
         with(TAuthResourceGroupMember.T_AUTH_RESOURCE_GROUP_MEMBER) {
-            if (!isMemberInGroup(dslContext, projectCode, iamGroupId, handoverTo.id)) {
-                dslContext.update(this)
-                    .set(MEMBER_ID, handoverTo.id)
-                    .set(MEMBER_NAME, handoverTo.name)
-                    .set(MEMBER_TYPE, handoverTo.type)
-                    .set(EXPIRED_TIME, expiredTime)
-                    .where(PROJECT_CODE.eq(projectCode))
-                    .and(IAM_GROUP_ID.eq(iamGroupId))
-                    .and(MEMBER_ID.eq(handoverFrom.id))
-                    .execute()
-            }
+            dslContext.update(this)
+                .set(MEMBER_ID, handoverTo.id)
+                .set(MEMBER_NAME, handoverTo.name)
+                .set(MEMBER_TYPE, handoverTo.type)
+                .set(EXPIRED_TIME, expiredTime)
+                .where(PROJECT_CODE.eq(projectCode))
+                .and(IAM_GROUP_ID.eq(iamGroupId))
+                .and(MEMBER_ID.eq(handoverFrom.id))
+                .execute()
         }
     }
 
