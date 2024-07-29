@@ -36,7 +36,6 @@ import com.tencent.devops.common.api.constant.HTTP_401
 import com.tencent.devops.common.api.constant.HTTP_403
 import com.tencent.devops.common.api.constant.HTTP_404
 import com.tencent.devops.common.api.exception.CustomException
-import com.tencent.devops.common.api.exception.SdkException
 import com.tencent.devops.common.api.util.OkhttpUtils
 import com.tencent.devops.common.api.util.ShaUtils
 import com.tencent.devops.common.client.Client
@@ -442,7 +441,7 @@ class GithubService @Autowired constructor(
     override fun getUser(token: String): GetUserResponse? {
         return try {
             githubUserService.getUser(token)
-        } catch (ignored: SdkException) {
+        } catch (ignored: Exception) {
             logger.warn("fail to get github user failed: $ignored")
             null
         }
@@ -457,7 +456,7 @@ class GithubService @Autowired constructor(
                 ),
                 token = token
             )
-        } catch (ignored: SdkException) {
+        } catch (ignored: Exception) {
             logger.warn("get github repository permissions failed: $ignored")
             null
         }
