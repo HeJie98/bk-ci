@@ -2,7 +2,6 @@ package com.tencent.devops.repository.service.permission
 
 import com.tencent.devops.common.api.enums.RepositoryConfig
 import com.tencent.devops.common.api.enums.RepositoryType
-import com.tencent.devops.common.api.enums.ScmType
 import com.tencent.devops.common.api.exception.PermissionForbiddenException
 import com.tencent.devops.common.api.util.HashUtil
 import com.tencent.devops.common.api.util.MessageUtil
@@ -14,20 +13,15 @@ import com.tencent.devops.common.auth.api.pojo.ResourceAuthorizationHandoverResu
 import com.tencent.devops.common.auth.enums.ResourceAuthorizationHandoverStatus
 import com.tencent.devops.common.web.utils.I18nUtil
 import com.tencent.devops.repository.constant.RepositoryMessageCode
+import com.tencent.devops.repository.pojo.Repository
 import com.tencent.devops.repository.service.RepositoryService
-import com.tencent.devops.repository.service.RepositoryUserService
-import com.tencent.devops.repository.service.github.GithubTokenService
-import com.tencent.devops.repository.service.scm.GitOauthService
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 @Service
 class RepositoryAuthorizationService constructor(
     private val authAuthorizationApi: AuthAuthorizationApi,
-    private val repositoryService: RepositoryService,
-    private val githubTokenService: GithubTokenService,
-    private val gitOauthService: GitOauthService,
-    private val repositoryUserService: RepositoryUserService
+    private val repositoryService: RepositoryService
 ) {
     fun batchModifyHandoverFrom(
         projectId: String,
@@ -70,41 +64,29 @@ class RepositoryAuthorizationService constructor(
         with(resourceAuthorizationHandoverDTO) {
             val handoverTo = handoverTo!!
             try {
+                val repositoryRecord = repositoryService.getRepository(
+                    projectId = projectCode,
+                    repositoryConfig = RepositoryConfig(
+                        repositoryName = null,
+                        repositoryHashId = resourceCode,
+                        repositoryType = RepositoryType.ID
+                    )
+                )
+                val repository = repositoryService.compose(repositoryRecord)
                 validateResourcePermission(
                     userId = resourceAuthorizationHandoverDTO.handoverTo!!,
                     projectCode = resourceAuthorizationHandoverDTO.projectCode,
                     resourceName = resourceAuthorizationHandoverDTO.resourceName,
-                    resourceCode = resourceAuthorizationHandoverDTO.resourceCode
+                    resourceCode = resourceAuthorizationHandoverDTO.resourceCode,
+                    repository = repository
                 )
-                // Check if the grantor has used oauth
-                val isUsedOauth = repositoryService.serviceGet(
-                    projectId = projectCode,
-                    repositoryConfig = RepositoryConfig(
-                        repositoryHashId = resourceCode,
-                        repositoryName = null,
-                        repositoryType = RepositoryType.ID
-                    )
-                ).getScmType().let { scmType ->
-                    when (scmType) {
-                        ScmType.GITHUB -> githubTokenService.getAccessToken(handoverTo) != null
-                        ScmType.CODE_GIT -> gitOauthService.getAccessToken(handoverTo) != null
-                        else -> false
-                    }
-                }
-                if (!isUsedOauth) {
-                    return ResourceAuthorizationHandoverResult(
-                        status = ResourceAuthorizationHandoverStatus.FAILED,
-                        message = MessageUtil.getMessageByLocale(
-                            messageCode = RepositoryMessageCode.ERROR_USER_HAVE_NOT_USED_OAUTH,
-                            language = I18nUtil.getLanguage(handoverTo)
-                        )
-                    )
-                }
                 if (!preCheck) {
-                    repositoryUserService.updateRepositoryUserInfo(
+                    // 重置权限
+                    repositoryService.reOauth(
+                        repository = repository,
+                        repositoryRecord = repositoryRecord,
                         userId = handoverTo,
-                        projectCode = projectCode,
-                        repositoryHashId = resourceCode,
+                        projectId = projectCode
                     )
                 }
             } catch (ignore: Exception) {
@@ -122,14 +104,22 @@ class RepositoryAuthorizationService constructor(
         }
     }
 
-
+    /**
+     * 校验资源权限
+     * @param userId 用户名
+     * @param projectCode 项目英文名称
+     * @param resourceName 资源名称
+     * @param resourceCode 代码库hashID
+     * @param repository 代码库关联信息
+     */
     private fun validateResourcePermission(
         userId: String,
         projectCode: String,
         resourceName: String,
-        // 代码库hashID
-        resourceCode: String
+        resourceCode: String,
+        repository: Repository
     ) {
+        // 校验编辑权限
         val repositoryId = HashUtil.decodeOtherIdToLong(resourceCode)
         repositoryService.validatePermission(
             user = userId,
@@ -142,25 +132,11 @@ class RepositoryAuthorizationService constructor(
                 language = I18nUtil.getLanguage(userId)
             )
         )
-        val repositoryRecord = repositoryService.getRepository(
-            projectId = projectCode,
-            repositoryConfig = RepositoryConfig(
-                repositoryName = null,
-                repositoryHashId = resourceCode,
-                repositoryType = RepositoryType.ID
-            )
-        )
-        val repository = repositoryService.compose(repositoryRecord)
+        // 校验下载权限
         repositoryService.checkRepoDownloadPem(
             userId = userId,
             projectId = projectCode,
             repository = repository
-        )
-        repositoryService.reOauth(
-            repository = repository,
-            repositoryRecord = repositoryRecord,
-            userId = userId,
-            projectId = projectCode
         )
     }
 
