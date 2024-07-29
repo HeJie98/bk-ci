@@ -1453,11 +1453,15 @@ class RepositoryService @Autowired constructor(
         repository: Repository
     ) {
         val projectName = repository.projectName
+        val language = I18nUtil.getLanguage(userId)
         val havePermission = when (repository) {
             is CodeGitRepository -> {
-                val token = gitOauthService.getAccessToken(userId = userId)?.accessToken ?: throw ErrorCodeException(
-                    errorCode = NOT_AUTHORIZED_BY_OAUTH,
-                    params = arrayOf(userId)
+                val token = gitOauthService.getAccessToken(userId = userId)?.accessToken ?: throw OperationException(
+                    MessageUtil.getMessageByLocale(
+                        NOT_AUTHORIZED_BY_OAUTH,
+                        language,
+                        arrayOf(userId)
+                    )
                 )
                 val members = try {
                     gitService.getMembers(
@@ -1476,14 +1480,20 @@ class RepositoryService @Autowired constructor(
             }
 
             is GithubRepository -> {
-                val token = githubService.getAccessToken(userId) ?: throw ErrorCodeException(
-                    errorCode = NOT_GITHUB_AUTHORIZED_BY_OAUTH,
-                    params = arrayOf(userId)
+                val token = githubService.getAccessToken(userId) ?: throw OperationException(
+                    MessageUtil.getMessageByLocale(
+                        NOT_GITHUB_AUTHORIZED_BY_OAUTH,
+                        language,
+                        arrayOf(userId)
+                    )
                 )
                 // github 用户信息
-                val user = githubService.getUser(token.accessToken) ?: throw ErrorCodeException(
-                    errorCode = NOT_GITHUB_AUTHORIZED_BY_OAUTH,
-                    params = arrayOf(userId)
+                val user = githubService.getUser(token.accessToken) ?: throw OperationException(
+                    MessageUtil.getMessageByLocale(
+                        NOT_GITHUB_AUTHORIZED_BY_OAUTH,
+                        language,
+                        arrayOf(userId)
+                    )
                 )
                 // 是否有下载权限
                 val permission = githubService.getRepositoryPermissions(
@@ -1495,16 +1505,22 @@ class RepositoryService @Autowired constructor(
             }
 
             else -> {
-                throw ErrorCodeException(
-                    errorCode = REPOSITORY_NO_SUPPORT_OAUTH,
-                    params = arrayOf(repository.getScmType().name)
+                throw OperationException(
+                    MessageUtil.getMessageByLocale(
+                        REPOSITORY_NO_SUPPORT_OAUTH,
+                        language,
+                        arrayOf(repository.getScmType().name)
+                    )
                 )
             }
         }
         if (!havePermission) {
-            throw ErrorCodeException(
-                errorCode = ERROR_USER_HAVE_NOT_DOWNLOAD_PEM,
-                params = arrayOf(userId, repository.aliasName)
+            throw OperationException(
+                MessageUtil.getMessageByLocale(
+                    ERROR_USER_HAVE_NOT_DOWNLOAD_PEM,
+                    language,
+                    arrayOf(userId, repository.aliasName)
+                )
             )
         }
     }
@@ -1523,9 +1539,12 @@ class RepositoryService @Autowired constructor(
             is CodeGitRepository -> repository.copy(userName = userId)
             is GithubRepository -> repository.copy(userName = userId)
             else -> {
-                throw ErrorCodeException(
-                    errorCode = REPOSITORY_NO_SUPPORT_OAUTH,
-                    params = arrayOf(repository.getScmType().name)
+                throw OperationException(
+                    MessageUtil.getMessageByLocale(
+                        REPOSITORY_NO_SUPPORT_OAUTH,
+                        I18nUtil.getLanguage(userId),
+                        arrayOf(repository.getScmType().name)
+                    )
                 )
             }
         }
